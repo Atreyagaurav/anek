@@ -1,0 +1,7 @@
+title=Difference
+mean=2632.6444
+sd=848.1312
+xmin=-3e3
+xmax=6e3
+xtics=1.5e3
+filename=/tmp/diff.pdf

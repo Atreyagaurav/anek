@@ -1,0 +1,7 @@
+title=Observed
+mean=7411.7722
+sd=2163.6203
+xmin=-3e3
+xmax=12e3
+xtics=3e3
+filename=/tmp/observed.pdf

@@ -1,0 +1,7 @@
+title=Natural
+mean=4779.1278
+sd=2696.3397
+xmin=-3e3
+xmax=12e3
+xtics=3e3
+filename=/tmp/natural.pdf
