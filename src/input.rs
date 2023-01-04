@@ -1,5 +1,4 @@
 use clap::Args;
-use itertools::Itertools;
 use std::collections::HashMap;
 use std::fs::{read_dir, File, ReadDir};
 use std::io::{BufRead, BufReader};
@@ -25,6 +24,7 @@ pub fn input_lines(filename: &PathBuf) -> Result<Vec<(usize, String)>, String> {
     let lines = reader_lines
         .enumerate()
         .map(|il| (il.0, il.1.unwrap()))
+        .filter(|il| il.1.trim() != "" && !il.1.trim().starts_with("#"))
         .collect();
     Ok(lines)
 }
@@ -33,14 +33,18 @@ pub fn read_inputs<'a>(
     enum_lines: &'a Vec<(usize, String)>,
     input_map: &mut HashMap<&'a str, &'a str>,
 ) -> Result<(), String> {
-    for (_i, line) in enum_lines {
-        if line.trim() != "" {
-            let mut split_data = line.split("=");
-            input_map.insert(
-                split_data.next().unwrap_or(""),
-                split_data.next().unwrap_or(""),
-            );
-        }
+    for (i, line) in enum_lines {
+        let mut split_data = line.split("=");
+        input_map.insert(
+            match split_data.next() {
+                Some(d) => d,
+                None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
+            },
+            match split_data.next() {
+                Some(d) => d,
+                None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
+            },
+        );
     }
     Ok(())
 }
@@ -50,7 +54,6 @@ pub fn list_files(filename: &PathBuf) -> Result<ReadDir, String> {
         Ok(l) => l,
         Err(e) => return Err(format!("Couldn't open directory: {:?}\n{:?}", &filename, e)),
     };
-
     Ok(files)
 }
 
@@ -59,30 +62,15 @@ pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>
     let mut input_values: Vec<Vec<(String, usize, String)>> = Vec::new();
     for file in input_files {
         let file = file.unwrap();
+        let filename = file.file_name().to_str().unwrap().to_string();
         let lines = input_lines(&file.path())?;
         input_values.push(
             lines
                 .iter()
-                .map(|l| {
-                    (
-                        file.file_name().to_str().unwrap().to_string(),
-                        l.0,
-                        l.1.clone(),
-                    )
-                })
+                .enumerate()
+                .map(|(i, l)| (filename.clone(), i, l.1.clone()))
                 .collect(),
         );
     }
-
-    let permutations = input_values.iter().multi_cartesian_product();
-    let mut final_values: Vec<Vec<(String, usize, String)>> = Vec::new();
-    for inputs in permutations {
-        final_values.push(
-            inputs
-                .iter()
-                .map(|&t| (t.0.clone(), t.1, t.2.clone())) // not good, find a way to safely transfer values
-                .collect(),
-        );
-    }
-    Ok(final_values)
+    Ok(input_values)
 }

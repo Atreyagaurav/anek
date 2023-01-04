@@ -1,5 +1,6 @@
 use clap::Args;
 use colored::Colorize;
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::PathBuf;
@@ -64,9 +65,10 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     }
     if let Some(loop_name) = args.r#loop {
         let loop_inputs = input::loop_inputs(&args.path.join("loops").join(loop_name))?;
+        let permutations = loop_inputs.iter().multi_cartesian_product();
 
         let mut loop_index = 0; // extra variables for loop template
-        for inputs in loop_inputs {
+        for inputs in permutations {
             let loop_index_str = loop_index.to_string();
             let mut input_map: HashMap<&str, &str> = HashMap::new();
             input_map.insert("loop_index", &loop_index_str);
