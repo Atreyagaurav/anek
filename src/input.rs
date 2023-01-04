@@ -1,4 +1,5 @@
 use clap::Args;
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::fs::{read_dir, File, ReadDir};
 use std::io::{BufRead, BufReader};
@@ -51,4 +52,37 @@ pub fn list_files(filename: &PathBuf) -> Result<ReadDir, String> {
     };
 
     Ok(files)
+}
+
+pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>>, String> {
+    let input_files = list_files(&dirname)?;
+    let mut input_values: Vec<Vec<(String, usize, String)>> = Vec::new();
+    for file in input_files {
+        let file = file.unwrap();
+        let lines = input_lines(&file.path())?;
+        input_values.push(
+            lines
+                .iter()
+                .map(|l| {
+                    (
+                        file.file_name().to_str().unwrap().to_string(),
+                        l.0,
+                        l.1.clone(),
+                    )
+                })
+                .collect(),
+        );
+    }
+
+    let permutations = input_values.iter().multi_cartesian_product();
+    let mut final_values: Vec<Vec<(String, usize, String)>> = Vec::new();
+    for inputs in permutations {
+        final_values.push(
+            inputs
+                .iter()
+                .map(|&t| (t.0.clone(), t.1, t.2.clone())) // not good, find a way to safely transfer values
+                .collect(),
+        );
+    }
+    Ok(final_values)
 }

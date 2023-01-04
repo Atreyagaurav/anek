@@ -18,6 +18,9 @@ pub struct CliArgs {
     /// Run from batch
     #[arg(short, long)]
     batch: Option<String>,
+    /// Run batch by looping for the inputs
+    #[arg(short, long)]
+    r#loop: Option<String>,
     /// Run from favorites
     #[arg(short, long)]
     favorite: Option<String>,
@@ -57,6 +60,30 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 &args.path.join(line),
                 &args.path.join("contents"),
             )?;
+        }
+    }
+    if let Some(loop_name) = args.r#loop {
+        let loop_inputs = input::loop_inputs(&args.path.join("loops").join(loop_name))?;
+
+        let mut loop_index = 0; // extra variables for loop template
+        for inputs in loop_inputs {
+            let loop_index_str = loop_index.to_string();
+            let mut input_map: HashMap<&str, &str> = HashMap::new();
+            input_map.insert("loop_index", &loop_index_str);
+            print!("{}: ", "Input".bright_blue().bold());
+            for (var, i, val) in &inputs {
+                input_map.insert(&var, &val);
+                print!("{}[{}]={}; ", &var, i, &val);
+            }
+            println!("");
+
+            let command = cmd_template.render(&input_map);
+            println!("{}: {}", "Run".green(), command.trim());
+            Exec::shell(command)
+                .cwd(&args.path.join("contents"))
+                .join()
+                .unwrap();
+            loop_index += 1;
         }
     }
     Ok(())

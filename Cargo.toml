@@ -10,6 +10,9 @@ about = "Simple Tool to run command templates"
 [dependencies]
 clap = { version = "4.0.32", features = ["derive"] }
 colored = "2.0.0"
+fold = "0.1.0"
 input = "0.7.1"
+itertools = "0.10.5"
+reduce = "0.1.5"
 string_template = "0.2.1"
 subprocess = "0.2.9"
