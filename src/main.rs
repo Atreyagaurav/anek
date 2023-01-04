@@ -14,10 +14,9 @@ struct Cli {
     #[command(subcommand)]
     action: Action,
 
-    /// Anek Template Path
+    ///Working Directory
     ///
-    /// Can be a path to a directory or a .tar.gz (.anek) file which contains
-    /// the same structure
+    /// The path should have .anek directory with anek configurations
     #[arg(default_value = ".")]
     path: PathBuf,
 }

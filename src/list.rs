@@ -26,15 +26,15 @@ pub struct CliArgs {
 
 pub fn list_options(args: CliArgs) -> Result<(), String> {
     let paths = if args.favorite {
-        input::list_files(&args.path.join("favorites"))?
+        input::list_files(&args.path.join(".anek/favorites"))?
     } else if args.batch {
-        input::list_files(&args.path.join("batch"))?
+        input::list_files(&args.path.join(".anek/batch"))?
     } else if args.loops {
-        input::list_files(&args.path.join("loops"))?
+        input::list_files(&args.path.join(".anek/loops"))?
     } else if args.command {
-        input::list_files(&args.path.join("commands"))?
+        input::list_files(&args.path.join(".anek/commands"))?
     } else {
-        input::list_files(&args.path.join("history"))?
+        input::list_files(&args.path.join(".anek/history"))?
     };
     for p in paths {
         println!("{}", p.unwrap().file_name().into_string().unwrap());

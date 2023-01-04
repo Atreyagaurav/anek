@@ -64,6 +64,9 @@ pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>
         let file = file.unwrap();
         let filename = file.file_name().to_str().unwrap().to_string();
         let lines = input_lines(&file.path())?;
+        if lines.len() == 0 {
+            continue;
+        }
         input_values.push(
             lines
                 .iter()

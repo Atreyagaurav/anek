@@ -40,7 +40,7 @@ pub fn exec_file(cmd: &Template, filename: &PathBuf, wd: &PathBuf) -> Result<(),
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
-    let cmd_content = match read_to_string(args.path.join("commands").join(args.command)) {
+    let cmd_content = match read_to_string(args.path.join(".anek/commands").join(args.command)) {
         Ok(s) => s,
         Err(e) => return Err(e.to_string()),
     };
@@ -48,31 +48,36 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     if let Some(favorite) = args.favorite {
         exec_file(
             &cmd_template,
-            &args.path.join("favorites").join(favorite),
-            &args.path.join("contents"),
+            &args.path.join(".anek/favorites").join(favorite),
+            &args.path,
         )?;
     }
     if let Some(batch) = args.batch {
-        let batch_lines = input::input_lines(&args.path.join("batch").join(batch))?;
+        let batch_lines = input::input_lines(&args.path.join(".anek/batch").join(batch))?;
         for (i, line) in batch_lines {
             println!("{}: {}", "Job".green(), i + 1);
             exec_file(
                 &cmd_template,
-                &args.path.join(line),
-                &args.path.join("contents"),
+                &args.path.join(".anek").join(line),
+                &args.path,
             )?;
         }
     }
     if let Some(loop_name) = args.r#loop {
-        let loop_inputs = input::loop_inputs(&args.path.join("loops").join(loop_name))?;
-        let permutations = loop_inputs.iter().multi_cartesian_product();
+        let loop_inputs = input::loop_inputs(&args.path.join(".anek/loops").join(loop_name))?;
+
+        let permutations = loop_inputs
+            .iter()
+            // filter only the inputs used in the command file
+            .filter(|inps| cmd_content.contains(&format!("{{{{{}}}}}", inps[0].0)))
+            .multi_cartesian_product();
 
         let mut loop_index = 0; // extra variables for loop template
         for inputs in permutations {
             let loop_index_str = loop_index.to_string();
             let mut input_map: HashMap<&str, &str> = HashMap::new();
             input_map.insert("loop_index", &loop_index_str);
-            print!("{}: ", "Input".bright_blue().bold());
+            print!("{} [{}]: ", "Input".bright_blue().bold(), loop_index);
             for (var, i, val) in &inputs {
                 input_map.insert(&var, &val);
                 print!("{}[{}]={}; ", &var, i, &val);
@@ -81,10 +86,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
 
             let command = cmd_template.render(&input_map);
             println!("{}: {}", "Run".green(), command.trim());
-            Exec::shell(command)
-                .cwd(&args.path.join("contents"))
-                .join()
-                .unwrap();
+            Exec::shell(command).cwd(&args.path).join().unwrap();
             loop_index += 1;
         }
     }
