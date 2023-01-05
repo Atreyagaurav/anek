@@ -1,1 +1,1 @@
-gnuplot -p -e "filename='{{filename}}';dist_name='{{title}}';μ_input={{mean}};σ_input={{sd}};xmin={{xmin}};xmax={{xmax}};xdiff={{xtics}}" normal-dist-pdf.gp
+gnuplot -p -e "filename='{filename}';dist_name='{title}';μ_input={mean};σ_input={sd};xmin={xmin};xmax={xmax};xdiff={xtics}" normal-dist-pdf.gp

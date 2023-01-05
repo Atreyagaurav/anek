@@ -11,5 +11,5 @@ about = "simple tool to run command templates"
 clap = { version = "4.0.32", features = ["derive"] }
 colored = "2.0.0"
 itertools = "0.10.5"
-string_template = "0.2.1"
+new_string_template = "1.4.0"
 subprocess = "0.2.9"

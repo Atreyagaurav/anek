@@ -1,10 +1,10 @@
 use clap::Args;
 use colored::Colorize;
 use itertools::Itertools;
+use new_string_template::template::Template;
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::PathBuf;
-use string_template::Template;
 use subprocess::Exec;
 
 use crate::input;
@@ -39,7 +39,10 @@ pub fn exec_file(
     let lines = input::input_lines(&filename)?;
     input::read_inputs(&lines, &mut input_map)?;
     input_map.extend(overwrite);
-    let command = cmd.render(&input_map);
+    let command = match cmd.render(&input_map) {
+        Ok(c) => c,
+        Err(e) => return Err(e.to_string()),
+    };
     println!("{}: {}", "Run".green(), command.trim());
     Exec::shell(command).cwd(&wd).join().unwrap();
     Ok(())
@@ -117,7 +120,10 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             }
             println!("");
 
-            let command = cmd_template.render(&input_map);
+            let command = match cmd_template.render(&input_map) {
+                Ok(c) => c,
+                Err(e) => return Err(e.to_string()),
+            };
             println!("{}: {}", "Run".green(), command.trim());
             Exec::shell(command).cwd(&args.path).join().unwrap();
             loop_index += 1;
