@@ -35,6 +35,8 @@ enum Action {
     // Command(String),
     // /// favorite
     // Favorite(String),
+    /// Input related commands
+    Input(input::CliArgs),
     /// list things
     List(list::CliArgs),
     /// run the file
@@ -46,6 +48,7 @@ fn main() {
 
     let start = Instant::now();
     let action_result = match args.action {
+        Action::Input(args) => input::run_command(args),
         Action::List(args) => list::list_options(args),
         Action::Run(args) => run::run_command(args),
     };

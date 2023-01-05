@@ -1,11 +1,25 @@
 use clap::Args;
 use std::collections::HashMap;
+use std::env;
 use std::fs::{read_dir, File, ReadDir};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+use subprocess::Exec;
 
 #[derive(Args)]
 pub struct CliArgs {
+    /// List the inputs with short description
+    #[arg(short, long, action)]
+    list: bool,
+    /// List the inputs with long description (assumes --list)
+    #[arg(short, long, action)]
+    details: bool,
+    /// Gives long description of the input
+    #[arg(short, long)]
+    info: Option<String>,
+    /// Edit or add a file inside .anek
+    #[arg(short, long)]
+    edit: Option<String>,
     #[arg(default_value = ".")]
     path: PathBuf,
 }
@@ -76,4 +90,47 @@ pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>
         );
     }
     Ok(input_values)
+}
+
+fn print_input_info(name: &str, path: &PathBuf, details: bool) -> Result<(), String> {
+    let file = match File::open(path) {
+        Ok(f) => f,
+        Err(e) => return Err(format!("Couldn't open input file: {:?}\n{:?}", &path, e)),
+    };
+    print!("{}: ", name);
+
+    let mut reader_lines = BufReader::new(file).lines();
+    println!("{}", reader_lines.next().unwrap().unwrap());
+    if details {
+        for line in reader_lines {
+            println!("{}", line.unwrap());
+        }
+    }
+    Ok(())
+}
+
+pub fn run_command(args: CliArgs) -> Result<(), String> {
+    if args.list || args.details {
+        let files = list_files(&args.path.join(".anek/inputs"))?;
+
+        for file in files {
+            let file = file.unwrap();
+            let filename = file.file_name().to_str().unwrap().to_string();
+            print_input_info(&filename, &file.path(), args.details)?;
+        }
+    }
+    if let Some(name) = args.info {
+        print_input_info(&name, &args.path.join(".anek/inputs").join(&name), true)?;
+    }
+
+    if let Some(path) = args.edit {
+        let command = format!(
+            "{} {:?}",
+            env::var("EDITOR").unwrap(),
+            args.path.join(".anek").join(path)
+        );
+        println!("{}", command);
+        Exec::shell(command).join().unwrap();
+    }
+    Ok(())
 }

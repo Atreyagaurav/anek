@@ -13,9 +13,6 @@ use crate::input;
 pub struct CliArgs {
     /// command to run
     command: String,
-    /// Run with default values
-    #[arg(short, long, action)]
-    default: bool,
     /// Run from batch
     #[arg(short, long)]
     batch: Option<String>,
@@ -25,14 +22,23 @@ pub struct CliArgs {
     /// Run from favorites
     #[arg(short, long)]
     favorite: Option<String>,
+    /// Overwrite input variables
+    #[arg(short, long)]
+    overwrite: Vec<String>,
     #[arg(default_value = ".")]
     path: PathBuf,
 }
 
-pub fn exec_file(cmd: &Template, filename: &PathBuf, wd: &PathBuf) -> Result<(), String> {
+pub fn exec_file(
+    cmd: &Template,
+    filename: &PathBuf,
+    wd: &PathBuf,
+    overwrite: &HashMap<&str, &str>,
+) -> Result<(), String> {
     let mut input_map: HashMap<&str, &str> = HashMap::new();
     let lines = input::input_lines(&filename)?;
     input::read_inputs(&lines, &mut input_map)?;
+    input_map.extend(overwrite);
     let command = cmd.render(&input_map);
     println!("{}: {}", "Run".green(), command.trim());
     Exec::shell(command).cwd(&wd).join().unwrap();
@@ -45,11 +51,30 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         Err(e) => return Err(e.to_string()),
     };
     let cmd_template = Template::new(&cmd_content);
+
+    let mut overwrite: HashMap<&str, &str> = HashMap::new();
+    if args.overwrite.len() > 0 {
+        for vars in &args.overwrite {
+            let mut split_data = vars.split(":");
+            overwrite.insert(
+                match split_data.next() {
+                    Some(d) => d,
+                    None => return Err(format!("Invalid Variable in overwrite: {}", vars)),
+                },
+                match split_data.next() {
+                    Some(d) => d,
+                    None => return Err(format!("Invalid Value in overwrite: {}", vars)),
+                },
+            );
+        }
+    }
+
     if let Some(favorite) = args.favorite {
         exec_file(
             &cmd_template,
             &args.path.join(".anek/favorites").join(favorite),
             &args.path,
+            &overwrite,
         )?;
     }
     if let Some(batch) = args.batch {
@@ -60,6 +85,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 &cmd_template,
                 &args.path.join(".anek").join(line),
                 &args.path,
+                &overwrite,
             )?;
         }
     }
@@ -70,6 +96,13 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .iter()
             // filter only the inputs used in the command file
             .filter(|inps| cmd_content.contains(&format!("{{{{{}}}}}", inps[0].0)))
+            .map(|inps| {
+                if let Some(value) = overwrite.get(inps[0].0.as_str()) {
+                    vec![(inps[0].0.clone(), 0, value.to_string())]
+                } else {
+                    inps.to_vec()
+                }
+            })
             .multi_cartesian_product();
 
         let mut loop_index = 0; // extra variables for loop template

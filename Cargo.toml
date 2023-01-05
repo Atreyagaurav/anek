@@ -3,16 +3,13 @@ name = "anek"
 version = "0.1.0"
 edition = "2021"
 author = "Gaurav Atreya"
-about = "Simple Tool to run command templates"
+about = "simple tool to run command templates"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 clap = { version = "4.0.32", features = ["derive"] }
 colored = "2.0.0"
-fold = "0.1.0"
-input = "0.7.1"
 itertools = "0.10.5"
-reduce = "0.1.5"
 string_template = "0.2.1"
 subprocess = "0.2.9"
