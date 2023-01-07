@@ -38,8 +38,8 @@ pub fn input_lines(filename: &PathBuf) -> Result<Vec<(usize, String)>, String> {
     let reader_lines = BufReader::new(file).lines();
     let lines = reader_lines
         .enumerate()
-        .map(|il| (il.0, il.1.unwrap()))
-        .filter(|il| il.1.trim() != "" && !il.1.trim().starts_with("#"))
+        .map(|(i, l)| (i + 1, l.unwrap()))
+        .filter(|(_, l)| l.trim() != "" && !l.trim().starts_with("#"))
         .collect();
     Ok(lines)
 }
@@ -53,11 +53,11 @@ pub fn read_inputs<'a>(
         input_map.insert(
             match split_data.next() {
                 Some(d) => d,
-                None => return Err(format!("Invalid Line# {}: \"{}\"", i + 1, line)),
+                None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
             },
             match split_data.next() {
                 Some(d) => d,
-                None => return Err(format!("Invalid Line# {}: \"{}\"", i + 1, line)),
+                None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
             },
         );
     }

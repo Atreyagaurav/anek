@@ -191,7 +191,7 @@ _anek() {
             return 0
             ;;
         anek__list)
-            opts="-F -a -i -f -c -l -b -h --filter --all --input --favorite --command --loops --batch --help [PATH]"
+            opts="-F -a -i -f -c -p -l -b -h --filter --all --input --favorite --command --pipeline --loops --batch --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -213,12 +213,36 @@ _anek() {
             return 0
             ;;
         anek__run)
-            opts="-t -b -l -f -o -h --template --batch --loop --favorite --overwrite --help <COMMAND> [PATH]"
+            opts="-c -C -p -b -l -f -d -o -h --command --command-template --pipeline --batch --loop --favorite --demo --overwrite --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
+                --command)
+                    COMPREPLY=($(compgen -W "$(anek -q list -c)" -- "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -W "$(anek -q list -c)" -- "${cur}"))
+                    return 0
+                    ;;
+                --command-template)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -C)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --pipeline)
+                    COMPREPLY=($(compgen -W "$(anek -q list -p)" -- "${cur}"))
+                    return 0
+                    ;;
+                -p)
+                    COMPREPLY=($(compgen -W "$(anek -q list -p)" -- "${cur}"))
+                    return 0
+                    ;;
                 --batch)
                     COMPREPLY=($(compgen -W "$(anek -q list -b)" -- "${cur}"))
                     return 0
@@ -255,7 +279,7 @@ _anek() {
                     COMPREPLY=()
                     ;;
             esac
-            COMPREPLY=( $(compgen -W "${opts} $(anek -q list -c)" -- "${cur}") )
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
     esac

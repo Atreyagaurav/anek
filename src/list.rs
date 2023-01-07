@@ -21,6 +21,9 @@ pub struct CliArgs {
     /// Commands
     #[arg(short, long, action)]
     command: bool,
+    /// Pipelines
+    #[arg(short, long, action)]
+    pipeline: bool,
     /// Loops
     #[arg(short, long, action)]
     loops: bool,
@@ -61,6 +64,11 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                 input::list_filenames(&args.path.join(".anek/commands"))?
                     .iter()
                     .map(|f| format!("commands/{}", f)),
+            )
+            .chain(
+                input::list_filenames(&args.path.join(".anek/pipelines"))?
+                    .iter()
+                    .map(|f| format!("pipelines/{}", f)),
             )
             .collect()
     } else if args.input {
@@ -128,6 +136,22 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                     args.filter
                         .iter()
                         .all(|f| cmd_content.contains(&format!("{{{}}}", f)))
+                })
+                .map(|s| s.to_string())
+                .collect()
+        }
+    } else if args.pipeline {
+        let lst = input::list_filenames(&args.path.join(".anek/pipelines"))?;
+        if args.filter.is_empty() {
+            lst
+        } else {
+            lst.iter()
+                .filter(|fnm| {
+                    let lines =
+                        input::input_lines(&args.path.join(".anek/pipelines").join(fnm)).unwrap();
+                    args.filter
+                        .iter()
+                        .all(|f| lines.iter().any(|(_, l)| l.contains(f.as_str())))
                 })
                 .map(|s| s.to_string())
                 .collect()
