@@ -91,7 +91,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     if let Some(batch) = args.batch {
         let batch_lines = input::input_lines(&args.path.join(".anek/batch").join(batch))?;
         for (i, line) in batch_lines {
-            println!("{} [{}]: {}", "Job".green(), i, line);
+            println!("{} [{}]: {}", "Job".green(), i + 1, line);
             exec_file(
                 &cmd_template,
                 &args.path.join(".anek").join(line),
@@ -116,7 +116,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             })
             .multi_cartesian_product();
 
-        let mut loop_index = 0; // extra variables for loop template
+        let mut loop_index = 1; // extra variables for loop template
         for inputs in permutations {
             let loop_index_str = loop_index.to_string();
             let mut input_map: HashMap<&str, &str> = HashMap::new();
@@ -124,7 +124,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             print!("{} [{}]: ", "Input".bright_blue().bold(), loop_index);
             for (var, i, val) in &inputs {
                 input_map.insert(&var, &val);
-                print!("{}[{}]={}; ", &var, i, &val);
+                print!("{} [_{}]={}; ", &var, i + 1, &val);
             }
             println!("");
 

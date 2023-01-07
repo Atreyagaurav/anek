@@ -53,11 +53,11 @@ pub fn read_inputs<'a>(
         input_map.insert(
             match split_data.next() {
                 Some(d) => d,
-                None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
+                None => return Err(format!("Invalid Line# {}: \"{}\"", i + 1, line)),
             },
             match split_data.next() {
                 Some(d) => d,
-                None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
+                None => return Err(format!("Invalid Line# {}: \"{}\"", i + 1, line)),
             },
         );
     }
