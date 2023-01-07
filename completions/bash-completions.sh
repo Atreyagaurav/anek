@@ -168,19 +168,19 @@ _anek() {
             fi
             case "${prev}" in
                 --info)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
                     return 0
                     ;;
                 -i)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
                     return 0
                     ;;
                 --edit)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -a)" -- "${cur}"))
                     return 0
                     ;;
                 -e)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -a)" -- "${cur}"))
                     return 0
                     ;;
                 *)
@@ -198,11 +198,11 @@ _anek() {
             fi
             case "${prev}" in
                 --filter)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
                     return 0
                     ;;
                 -F)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
                     return 0
                     ;;
                 *)
@@ -220,42 +220,42 @@ _anek() {
             fi
             case "${prev}" in
                 --batch)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -b)" -- "${cur}"))
                     return 0
                     ;;
                 -b)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -b)" -- "${cur}"))
                     return 0
                     ;;
                 --loop)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -l)" -- "${cur}"))
                     return 0
                     ;;
                 -l)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -l)" -- "${cur}"))
                     return 0
                     ;;
                 --favorite)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -f)" -- "${cur}"))
                     return 0
                     ;;
                 -f)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -W "$(anek -q list -f)" -- "${cur}"))
                     return 0
                     ;;
                 --overwrite)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -S ":" -W "$(anek -q list -i)" -- "${cur}"))
                     return 0
                     ;;
                 -o)
-                    COMPREPLY=($(compgen -f "${cur}"))
+                    COMPREPLY=($(compgen -S ":" -W "$(anek -q list -i)" -- "${cur}"))
                     return 0
                     ;;
                 *)
                     COMPREPLY=()
                     ;;
             esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            COMPREPLY=( $(compgen -W "${opts} $(anek -q list -c)" -- "${cur}") )
             return 0
             ;;
     esac
