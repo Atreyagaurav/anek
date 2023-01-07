@@ -1,5 +1,6 @@
-use clap::Args;
-use std::collections::HashMap;
+use clap::{Args, ValueHint};
+use colored::Colorize;
+use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::fs::{read_dir, File, ReadDir};
 use std::io::{BufRead, BufReader};
@@ -15,12 +16,12 @@ pub struct CliArgs {
     #[arg(short, long, action)]
     details: bool,
     /// Gives long description of the input
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = ValueHint::Other, value_name="INPUT")]
     info: Option<String>,
     /// Edit or add a file inside .anek
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = ValueHint::Other)]
     edit: Option<String>,
-    #[arg(default_value = ".")]
+    #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
     path: PathBuf,
 }
 
@@ -71,6 +72,28 @@ pub fn list_files(filename: &PathBuf) -> Result<ReadDir, String> {
     Ok(files)
 }
 
+pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
+    let mut filenames: Vec<String> = Vec::new();
+    let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![dirpath.clone()]);
+    let dirpath = dirpath.to_str().unwrap();
+
+    while !list_dir.is_empty() {
+        let file = list_dir.pop_front().unwrap();
+        if file.is_file() {
+            let fullpath = file.to_str().unwrap().to_string();
+            let relpath = fullpath
+                .strip_prefix(dirpath)
+                .and_then(|r| r.strip_prefix("/"))
+                .unwrap();
+            filenames.push(relpath.to_string());
+        } else if file.is_dir() {
+            let files = list_files(&file)?;
+            list_dir.extend(files.map(|f| -> PathBuf { f.unwrap().path().to_owned() }));
+        }
+    }
+    Ok(filenames)
+}
+
 pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>>, String> {
     let input_files = list_files(&dirname)?;
     let mut input_values: Vec<Vec<(String, usize, String)>> = Vec::new();
@@ -97,13 +120,13 @@ fn print_input_info(name: &str, path: &PathBuf, details: bool) -> Result<(), Str
         Ok(f) => f,
         Err(e) => return Err(format!("Couldn't open input file: {:?}\n{:?}", &path, e)),
     };
-    print!("{}: ", name);
+    print!("{} {:10}: ", "⇒".bright_blue(), name.green());
 
     let mut reader_lines = BufReader::new(file).lines();
     println!("{}", reader_lines.next().unwrap().unwrap());
     if details {
         for line in reader_lines {
-            println!("{}", line.unwrap());
+            println!("    {}", line.unwrap());
         }
     }
     Ok(())
@@ -118,12 +141,9 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             let filename = file.file_name().to_str().unwrap().to_string();
             print_input_info(&filename, &file.path(), args.details)?;
         }
-    }
-    if let Some(name) = args.info {
+    } else if let Some(name) = args.info {
         print_input_info(&name, &args.path.join(".anek/inputs").join(&name), true)?;
-    }
-
-    if let Some(path) = args.edit {
+    } else if let Some(path) = args.edit {
         let command = format!(
             "{} {:?}",
             env::var("EDITOR").unwrap(),

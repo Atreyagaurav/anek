@@ -1,6 +1,7 @@
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete;
 use colored::Colorize;
-use std::path::PathBuf;
+use std::io;
 use std::time::Instant;
 
 mod input;
@@ -10,15 +11,12 @@ mod run;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    /// No other outputs
+    #[arg(short, long)]
+    quiet: bool,
     /// Command to run
     #[command(subcommand)]
     action: Action,
-
-    ///Working Directory
-    ///
-    /// The path should have .anek directory with anek configurations
-    #[arg(default_value = ".")]
-    path: PathBuf,
 }
 
 #[derive(Subcommand)]
@@ -41,6 +39,16 @@ enum Action {
     List(list::CliArgs),
     /// run the file
     Run(run::CliArgs),
+    /// Print completions
+    Completions,
+}
+
+fn print_completions() -> Result<(), String> {
+    let shell = clap_complete::Shell::Bash;
+    let mut clap_app = Cli::command();
+    let app_name = clap_app.get_name().to_string();
+    clap_complete::generate(shell, &mut clap_app, app_name, &mut io::stdout());
+    Ok(())
 }
 
 fn main() {
@@ -51,11 +59,15 @@ fn main() {
         Action::Input(args) => input::run_command(args),
         Action::List(args) => list::list_options(args),
         Action::Run(args) => run::run_command(args),
+        Action::Completions => print_completions(),
     };
     let duration = start.elapsed();
-    match action_result {
-        Ok(_) => (),
-        Err(e) => eprintln!("{}: {}", "Error".bright_red(), e),
+
+    if args.quiet {
+        return;
+    }
+    if let Err(e) = action_result {
+        eprintln!("{}: {}", "Error".bright_red(), e);
     }
     eprintln!("{}: {:?}", "Time Elapsed".bright_blue().bold(), duration);
 }

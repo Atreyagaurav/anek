@@ -1,4 +1,4 @@
-use clap::Args;
+use clap::{Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
 use new_string_template::template::Template;
@@ -11,21 +11,25 @@ use crate::input;
 
 #[derive(Args)]
 pub struct CliArgs {
-    /// command to run
+    /// command to run (from .anek/commands/)
+    #[arg(value_hint = ValueHint::CommandName)]
     command: String,
+    /// command to run is a literal command template
+    #[arg(short, long, action)]
+    template: bool,
     /// Run from batch
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = ValueHint::Other)]
     batch: Option<String>,
     /// Run batch by looping for the inputs
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = ValueHint::Other)]
     r#loop: Option<String>,
     /// Run from favorites
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = ValueHint::Other)]
     favorite: Option<String>,
     /// Overwrite input variables
-    #[arg(short, long)]
+    #[arg(short, long, value_hint = ValueHint::Other)]
     overwrite: Vec<String>,
-    #[arg(default_value = ".")]
+    #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
     path: PathBuf,
 }
 
@@ -49,9 +53,13 @@ pub fn exec_file(
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
-    let cmd_content = match read_to_string(args.path.join(".anek/commands").join(args.command)) {
-        Ok(s) => s,
-        Err(e) => return Err(e.to_string()),
+    let cmd_content = if args.template {
+        args.command
+    } else {
+        match read_to_string(args.path.join(".anek/commands").join(args.command)) {
+            Ok(s) => s,
+            Err(e) => return Err(e.to_string()),
+        }
     };
     let cmd_template = Template::new(&cmd_content);
 
@@ -83,7 +91,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     if let Some(batch) = args.batch {
         let batch_lines = input::input_lines(&args.path.join(".anek/batch").join(batch))?;
         for (i, line) in batch_lines {
-            println!("{}: {}", "Job".green(), i + 1);
+            println!("{} [{}]: {}", "Job".green(), i, line);
             exec_file(
                 &cmd_template,
                 &args.path.join(".anek").join(line),
@@ -98,7 +106,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         let permutations = loop_inputs
             .iter()
             // filter only the inputs used in the command file
-            .filter(|inps| cmd_content.contains(&format!("{{{{{}}}}}", inps[0].0)))
+            .filter(|inps| cmd_content.contains(&format!("{{{}}}", inps[0].0)))
             .map(|inps| {
                 if let Some(value) = overwrite.get(inps[0].0.as_str()) {
                     vec![(inps[0].0.clone(), 0, value.to_string())]

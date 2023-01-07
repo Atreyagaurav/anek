@@ -9,6 +9,7 @@ about = "simple tool to run command templates"
 
 [dependencies]
 clap = { version = "4.0.32", features = ["derive"] }
+clap_complete = "4.0.7"
 colored = "2.0.0"
 itertools = "0.10.5"
 new_string_template = "1.4.0"
