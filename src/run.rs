@@ -3,7 +3,6 @@ use colored::Colorize;
 use itertools::Itertools;
 use new_string_template::template::Template;
 use std::collections::HashMap;
-use std::fs::read_to_string;
 use std::path::PathBuf;
 use subprocess::Exec;
 
@@ -106,7 +105,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .iter()
             .map(
                 |(_, command)| -> Result<(String, String, Template), String> {
-                    match read_to_string(args.path.join(".anek/commands").join(&command)) {
+                    match input::read_file_full(&args.path.join(".anek/commands").join(&command)) {
                         Ok(s) => Ok((command.clone(), s.clone(), Template::new(s.trim()))),
                         Err(e) => Err(e.to_string()),
                     }
@@ -115,12 +114,16 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .collect::<Result<Vec<(String, String, Template)>, String>>()
             .unwrap()
     } else if let Some(command) = args.command {
-        match read_to_string(args.path.join(".anek/commands").join(&command)) {
-            Ok(s) => vec![(command, s.clone(), Template::new(s))],
-            Err(e) => return Err(e.to_string()),
-        }
+        let command_content =
+            input::read_file_full(&args.path.join(".anek/commands").join(&command))?;
+        vec![(
+            command,
+            command_content.clone(),
+            Template::new(command_content.trim()),
+        )]
     } else
-    // if let Some(template) = args.command_template
+    // same as: if let Some(template) = args.command_template
+    // Since these 3 are in a group and there must be one of them
     {
         let template = args.command_template.unwrap();
         vec![("CMD".to_string(), template.clone(), Template::new(template))]
