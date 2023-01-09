@@ -29,7 +29,10 @@ pub struct CliArgs {
     /// Run from favorites
     #[arg(short, long, value_hint = ValueHint::Other)]
     favorite: Option<String>,
-    /// Demo
+    /// Print commands in pipable format, assumes --demo
+    #[arg(short = 'P', long)]
+    pipable: bool,
+    /// Demo only, don't run the actual command
     #[arg(short, long)]
     demo: bool,
     /// Overwrite input variables
@@ -45,6 +48,7 @@ pub fn exec_on_inputfile(
     wd: &PathBuf,
     overwrite: &HashMap<&str, &str>,
     demo: bool,
+    pipable: bool,
     name: &str,
 ) -> Result<(), String> {
     let files = if filename.is_dir() {
@@ -74,13 +78,11 @@ pub fn exec_on_inputfile(
         Ok(c) => c,
         Err(e) => return Err(e.to_string()),
     };
-    println!(
-        "{} ({}): {}",
-        "Command".bright_green(),
-        name,
-        command.trim()
-    );
-    if !demo {
+    if !pipable {
+        print!("{} ({}): ", "Command".bright_green(), name);
+    }
+    println!("{}", command.trim());
+    if !(demo || pipable) {
         Exec::shell(command).cwd(&wd).join().unwrap();
     }
     Ok(())
@@ -92,9 +94,10 @@ pub fn exec_pipeline_on_inputfile(
     wd: &PathBuf,
     overwrite: &HashMap<&str, &str>,
     demo: bool,
+    pipable: bool,
 ) -> Result<(), String> {
     for (name, _, command) in commands {
-        exec_on_inputfile(&command, &input_file, &wd, &overwrite, demo, name)?;
+        exec_on_inputfile(&command, &input_file, &wd, &overwrite, demo, pipable, name)?;
     }
     Ok(())
 }
@@ -104,14 +107,18 @@ pub fn exec_pipeline(
     wd: &PathBuf,
     inputs: &HashMap<&str, &str>,
     demo: bool,
+    pipable: bool,
 ) -> Result<(), String> {
     for (name, _, command) in commands {
         let cmd = match command.render(&inputs) {
             Ok(c) => c,
             Err(e) => return Err(e.to_string()),
         };
-        println!("{} ({}): {}", "Command".bright_green(), name, cmd);
-        if !demo {
+        if !pipable {
+            println!("{} ({}): ", "Command".bright_green(), name);
+        }
+        println!("{}", cmd);
+        if !(demo || pipable) {
             Exec::shell(cmd).cwd(&wd).join().unwrap();
         }
     }
@@ -172,18 +179,22 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             &args.path,
             &overwrite,
             args.demo,
+            args.pipable,
         )?;
     }
     if let Some(batch) = args.batch {
         let batch_lines = input::input_lines(&args.path.join(".anek/batch").join(batch))?;
         for (i, line) in batch_lines {
-            println!("{} [{}]: {}", "Job".bright_purple().bold(), i, line);
+            if !args.pipable {
+                println!("{} [{}]: {}", "Job".bright_purple().bold(), i, line);
+            }
             exec_pipeline_on_inputfile(
                 &pipeline_templates,
                 &args.path.join(".anek").join(line),
                 &args.path,
                 &overwrite,
                 args.demo,
+                args.pipable,
             )?;
         }
     }
@@ -212,14 +223,26 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             let loop_index_str = loop_index.to_string();
             let mut input_map: HashMap<&str, &str> = HashMap::new();
             input_map.insert("loop_index", &loop_index_str);
-            print!("{} [{}]: ", "Input".bright_magenta().bold(), loop_index);
+            if !args.pipable {
+                print!("{} [{}]: ", "Input".bright_magenta().bold(), loop_index);
+            }
             for (var, i, val) in &inputs {
                 input_map.insert(&var, &val);
-                print!("{} [{}]={}; ", &var, i, &val);
+                if !args.pipable {
+                    print!("{} [{}]={}; ", &var, i, &val);
+                }
             }
-            println!("");
+            if !args.pipable {
+                println!("");
+            }
 
-            exec_pipeline(&pipeline_templates, &args.path, &input_map, args.demo)?;
+            exec_pipeline(
+                &pipeline_templates,
+                &args.path,
+                &input_map,
+                args.demo,
+                args.pipable,
+            )?;
             loop_index += 1;
         }
     }
