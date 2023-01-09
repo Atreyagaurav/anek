@@ -93,8 +93,8 @@ pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
             let fullpath = file.to_str().unwrap().to_string();
             let relpath = fullpath
                 .strip_prefix(dirpath)
-                .and_then(|r| r.strip_prefix("/"))
-                .unwrap();
+                .unwrap()
+                .trim_start_matches("/");
             filenames.push(relpath.to_string());
         } else if file.is_dir() {
             let files = list_files(&file)?;

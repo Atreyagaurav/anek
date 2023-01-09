@@ -39,7 +39,7 @@ pub struct CliArgs {
     path: PathBuf,
 }
 
-pub fn exec_file(
+pub fn exec_on_inputfile(
     cmd: &Template,
     filename: &PathBuf,
     wd: &PathBuf,
@@ -47,9 +47,28 @@ pub fn exec_file(
     demo: bool,
     name: &str,
 ) -> Result<(), String> {
+    let files = if filename.is_dir() {
+        input::list_filenames(&filename)?
+            .iter()
+            .map(|f| filename.join(f))
+            .collect()
+    } else if filename.is_file() {
+        vec![filename.clone()]
+    } else {
+        return Err(format!(
+            "Path {:?} is neither a directory nor a file",
+            filename
+        ));
+    };
     let mut input_map: HashMap<&str, &str> = HashMap::new();
-    let lines = input::input_lines(&filename)?;
-    input::read_inputs(&lines, &mut input_map)?;
+    let lines = files
+        .iter()
+        .map(|file| input::input_lines(&file))
+        .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
+    lines
+        .iter()
+        .map(|l| input::read_inputs(&l, &mut input_map))
+        .collect::<Result<(), String>>()?;
     input_map.extend(overwrite);
     let command = match cmd.render(&input_map) {
         Ok(c) => c,
@@ -67,7 +86,7 @@ pub fn exec_file(
     Ok(())
 }
 
-pub fn exec_pipeline_on_file(
+pub fn exec_pipeline_on_inputfile(
     commands: &Vec<(String, String, Template)>,
     input_file: &PathBuf,
     wd: &PathBuf,
@@ -75,7 +94,7 @@ pub fn exec_pipeline_on_file(
     demo: bool,
 ) -> Result<(), String> {
     for (name, _, command) in commands {
-        exec_file(&command, &input_file, &wd, &overwrite, demo, name)?;
+        exec_on_inputfile(&command, &input_file, &wd, &overwrite, demo, name)?;
     }
     Ok(())
 }
@@ -147,7 +166,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     }
 
     if let Some(favorite) = args.favorite {
-        exec_pipeline_on_file(
+        exec_pipeline_on_inputfile(
             &pipeline_templates,
             &args.path.join(".anek/favorites").join(favorite),
             &args.path,
@@ -159,7 +178,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         let batch_lines = input::input_lines(&args.path.join(".anek/batch").join(batch))?;
         for (i, line) in batch_lines {
             println!("{} [{}]: {}", "Job".bright_purple().bold(), i, line);
-            exec_pipeline_on_file(
+            exec_pipeline_on_inputfile(
                 &pipeline_templates,
                 &args.path.join(".anek").join(line),
                 &args.path,
