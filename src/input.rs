@@ -1,21 +1,28 @@
-use clap::{Args, ValueHint};
+use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_dir, File};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 #[derive(Args)]
+#[command(group = ArgGroup::new("list_info").required(false).multiple(false))]
 pub struct CliArgs {
-    /// List the inputs with short description
+    /// Scan the favorites files for input parameters
+    ///
+    /// If scanned inputs are not listed, then it'll add a empty file
+    /// with that name inside .anek/inputs/
     #[arg(short, long, action)]
+    scan: bool,
+    /// List the inputs with short description
+    #[arg(short, long, group = "list_info", action)]
     list: bool,
     /// List the inputs with long description (assumes --list)
-    #[arg(short, long, action)]
+    #[arg(short, long, group = "list_info", action)]
     details: bool,
     /// Gives long description of the input
-    #[arg(short, long, value_hint = ValueHint::Other, value_name="INPUT")]
+    #[arg(short, long, group = "list_info", value_hint = ValueHint::Other, value_name="INPUT")]
     info: Option<String>,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
     path: PathBuf,
@@ -38,6 +45,21 @@ pub fn input_lines(filename: &PathBuf) -> Result<Vec<(usize, String)>, String> {
         .filter(|(_, l)| l.trim() != "" && !l.trim().starts_with("#"))
         .collect();
     Ok(lines)
+}
+
+// todo: make it into generic function?
+pub fn read_inputs_set<'a>(
+    enum_lines: &'a Vec<(usize, String)>,
+    input_map: &mut HashSet<&'a str>,
+) -> Result<(), String> {
+    for (i, line) in enum_lines {
+        let mut split_data = line.split("=");
+        input_map.insert(match split_data.next() {
+            Some(d) => d,
+            None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
+        });
+    }
+    Ok(())
 }
 
 pub fn read_inputs<'a>(
@@ -80,25 +102,35 @@ pub fn list_files_sorted(filename: &PathBuf) -> Result<std::vec::IntoIter<PathBu
         .sorted());
 }
 
-pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
-    let mut filenames: Vec<String> = Vec::new();
-    let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![dirpath.clone()]);
-    let dirpath = dirpath.to_str().unwrap();
+pub fn list_files_sorted_recursive(filename: &PathBuf) -> Result<Vec<PathBuf>, String> {
+    let mut file_list: Vec<PathBuf> = Vec::new();
+    let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![filename.clone()]);
 
     while !list_dir.is_empty() {
         let file = list_dir.pop_front().unwrap();
         if file.is_file() {
-            let fullpath = file.to_str().unwrap().to_string();
-            let relpath = fullpath
-                .strip_prefix(dirpath)
-                .unwrap()
-                .trim_start_matches("/");
-            filenames.push(relpath.to_string());
+            file_list.push(file.clone());
         } else if file.is_dir() {
             let files = list_files_sorted(&file)?;
             list_dir.extend(files);
         }
     }
+    return Ok(file_list);
+}
+
+pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
+    let dirpath_full = dirpath.to_str().unwrap();
+    let filenames: Vec<String> = list_files_sorted_recursive(dirpath)?
+        .iter()
+        .map(|file| {
+            let fullpath = file.to_str().unwrap().to_string();
+            let relpath = fullpath
+                .strip_prefix(dirpath_full)
+                .unwrap()
+                .trim_start_matches("/");
+            relpath.to_string()
+        })
+        .collect();
     Ok(filenames)
 }
 
@@ -130,16 +162,42 @@ fn print_input_info(name: &str, path: &PathBuf, details: bool) -> Result<(), Str
     print!("{} {:10}: ", "⇒".bright_blue(), name.green());
 
     let mut reader_lines = BufReader::new(file).lines();
-    println!("{}", reader_lines.next().unwrap().unwrap());
-    if details {
-        for line in reader_lines {
-            println!("    {}", line.unwrap());
+    if let Some(l) = reader_lines.next() {
+        println!("{}", l.unwrap());
+        if details {
+            for line in reader_lines {
+                println!("    {}", line.unwrap());
+            }
         }
+    } else {
+        println!("");
     }
+
     Ok(())
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
+    if args.scan {
+        let files = list_files_sorted_recursive(&args.path.join(".anek/favorites"))?;
+        let mut inputs: HashSet<&str> = HashSet::new();
+        let lines = files
+            .iter()
+            .map(|file| input_lines(&file))
+            .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
+        lines
+            .iter()
+            .map(|lns| read_inputs_set(lns, &mut inputs))
+            .collect::<Result<(), String>>()?;
+        for input in inputs {
+            let input_file = args.path.join(".anek/inputs").join(input);
+            if !input_file.exists() {
+                println!("{}: {}", "New Input".red().bold(), input);
+                File::create(input_file).map_err(|e| e.to_string())?;
+            } else if !input_file.is_file() {
+                return Err(format!("{:?} is not a file", input_file));
+            }
+        }
+    }
     if args.list || args.details {
         let files = list_files_sorted(&args.path.join(".anek/inputs"))?;
 
