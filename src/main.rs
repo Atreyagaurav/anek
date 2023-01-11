@@ -4,6 +4,7 @@ use colored::Colorize;
 use std::io;
 use std::time::Instant;
 
+mod edit;
 mod input;
 mod list;
 mod run;
@@ -37,6 +38,8 @@ enum Action {
     Input(input::CliArgs),
     /// list things
     List(list::CliArgs),
+    /// Edit .anek files
+    Edit(edit::CliArgs),
     /// run the file
     Run(run::CliArgs),
     /// Print completions
@@ -58,6 +61,7 @@ fn main() {
     let action_result = match args.action {
         Action::Input(args) => input::run_command(args),
         Action::List(args) => list::list_options(args),
+        Action::Edit(args) => edit::edit_file(args),
         Action::Run(args) => run::run_command(args),
         Action::Completions => print_completions(),
     };

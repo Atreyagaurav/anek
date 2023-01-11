@@ -1,11 +1,9 @@
 use clap::{Args, ValueHint};
 use colored::Colorize;
 use std::collections::{HashMap, VecDeque};
-use std::env;
 use std::fs::{read_dir, File, ReadDir};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use subprocess::Exec;
 
 #[derive(Args)]
 pub struct CliArgs {
@@ -18,9 +16,6 @@ pub struct CliArgs {
     /// Gives long description of the input
     #[arg(short, long, value_hint = ValueHint::Other, value_name="INPUT")]
     info: Option<String>,
-    /// Edit or add a file inside .anek
-    #[arg(short, long, value_hint = ValueHint::Other)]
-    edit: Option<String>,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
     path: PathBuf,
 }
@@ -153,14 +148,6 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         }
     } else if let Some(name) = args.info {
         print_input_info(&name, &args.path.join(".anek/inputs").join(&name), true)?;
-    } else if let Some(path) = args.edit {
-        let command = format!(
-            "{} {:?}",
-            env::var("EDITOR").unwrap(),
-            args.path.join(".anek").join(path)
-        );
-        println!("{}", command);
-        Exec::shell(command).join().unwrap();
     }
     Ok(())
 }

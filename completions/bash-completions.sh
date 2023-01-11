@@ -15,6 +15,9 @@ _anek() {
             anek,completions)
                 cmd="anek__completions"
                 ;;
+            anek,edit)
+                cmd="anek__edit"
+                ;;
             anek,help)
                 cmd="anek__help"
                 ;;
@@ -29,6 +32,9 @@ _anek() {
                 ;;
             anek__help,completions)
                 cmd="anek__help__completions"
+                ;;
+            anek__help,edit)
+                cmd="anek__help__edit"
                 ;;
             anek__help,help)
                 cmd="anek__help__help"
@@ -49,7 +55,7 @@ _anek() {
 
     case "${cmd}" in
         anek)
-            opts="-q -h -V --quiet --help --version input list run completions help"
+            opts="-q -h -V --quiet --help --version input list edit run completions help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -76,8 +82,22 @@ _anek() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        anek__edit)
+            opts="-e -h --echo --help <ANEK_FILE> [PATH]"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "$(anek -q list -a)" -- "${cur}") )
+            return 0
+            ;;
         anek__help)
-            opts="input list run completions help"
+            opts="input list edit run completions help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -91,6 +111,20 @@ _anek() {
             return 0
             ;;
         anek__help__completions)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__help__edit)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -161,7 +195,7 @@ _anek() {
             return 0
             ;;
         anek__input)
-            opts="-l -d -i -e -h --list --details --info --edit --help [PATH]"
+            opts="-l -d -i -h --list --details --info --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -173,14 +207,6 @@ _anek() {
                     ;;
                 -i)
                     COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
-                    return 0
-                    ;;
-                --edit)
-                    COMPREPLY=($(compgen -W "$(anek -q list -a)" -- "${cur}"))
-                    return 0
-                    ;;
-                -e)
-                    COMPREPLY=($(compgen -W "$(anek -q list -a)" -- "${cur}"))
                     return 0
                     ;;
                 *)
@@ -213,7 +239,7 @@ _anek() {
             return 0
             ;;
         anek__run)
-            opts="-c -C -p -b -l -f -d -o -h --command --command-template --pipeline --batch --loop --favorite --demo --overwrite --help [PATH]"
+            opts="-c -C -p -b -l -f -P -d -o -h --command --command-template --pipeline --batch --loop --favorite --pipable --demo --overwrite --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
