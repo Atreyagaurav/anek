@@ -7,6 +7,7 @@ use std::time::Instant;
 mod edit;
 mod input;
 mod list;
+mod new;
 mod run;
 
 #[derive(Parser)]
@@ -22,18 +23,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Action {
-    // /// make a new file
-    // New(PathBuf),
-    // /// pull a file from anek file to current path
-    // Pull(PathBuf),
-    // /// push a file from current path to anek file
-    // Push(PathBuf),
-    // /// edit a file in the anek file
-    // Edit(PathBuf),
-    // /// edit a command in the anek file
-    // Command(String),
-    // /// favorite
-    // Favorite(String),
+    /// make a new anek configuration
+    New(new::CliArgs),
     /// Input related commands
     Input(input::CliArgs),
     /// list things
@@ -59,6 +50,7 @@ fn main() {
 
     let start = Instant::now();
     let action_result = match args.action {
+        Action::New(args) => new::new_config(args),
         Action::Input(args) => input::run_command(args),
         Action::List(args) => list::list_options(args),
         Action::Edit(args) => edit::edit_file(args),
