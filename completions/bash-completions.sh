@@ -84,13 +84,13 @@ _anek() {
             ;;
         anek__edit)
             opts="-e -h --echo --help <ANEK_FILE> [PATH]"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+            if [[ ${cur} == -* ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
                 *)
-                    COMPREPLY=()
+		    COMPREPLY=()
                     ;;
             esac
             COMPREPLY=( $(compgen -W "$(anek -q list -a)" -- "${cur}") )
