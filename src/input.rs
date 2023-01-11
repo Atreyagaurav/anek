@@ -1,7 +1,8 @@
 use clap::{Args, ValueHint};
 use colored::Colorize;
+use itertools::Itertools;
 use std::collections::{HashMap, VecDeque};
-use std::fs::{read_dir, File, ReadDir};
+use std::fs::{read_dir, File};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
@@ -69,12 +70,14 @@ pub fn read_file_full(path: &PathBuf) -> Result<String, String> {
     return Ok(content);
 }
 
-pub fn list_files(filename: &PathBuf) -> Result<ReadDir, String> {
+pub fn list_files_sorted(filename: &PathBuf) -> Result<std::vec::IntoIter<PathBuf>, String> {
     let files = match read_dir(&filename) {
         Ok(l) => l,
         Err(e) => return Err(format!("Couldn't open directory: {:?}\n{:?}", &filename, e)),
     };
-    Ok(files)
+    return Ok(files
+        .map(|f| -> PathBuf { f.unwrap().path().to_owned() })
+        .sorted());
 }
 
 pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
@@ -92,20 +95,19 @@ pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
                 .trim_start_matches("/");
             filenames.push(relpath.to_string());
         } else if file.is_dir() {
-            let files = list_files(&file)?;
-            list_dir.extend(files.map(|f| -> PathBuf { f.unwrap().path().to_owned() }));
+            let files = list_files_sorted(&file)?;
+            list_dir.extend(files);
         }
     }
     Ok(filenames)
 }
 
 pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>>, String> {
-    let input_files = list_files(&dirname)?;
+    let input_files = list_files_sorted(&dirname)?;
     let mut input_values: Vec<Vec<(String, usize, String)>> = Vec::new();
     for file in input_files {
-        let file = file.unwrap();
-        let filename = file.file_name().to_str().unwrap().to_string();
-        let lines = input_lines(&file.path())?;
+        let filename = file.file_name().unwrap().to_str().unwrap().to_string();
+        let lines = input_lines(&file)?;
         if lines.len() == 0 {
             continue;
         }
@@ -139,12 +141,11 @@ fn print_input_info(name: &str, path: &PathBuf, details: bool) -> Result<(), Str
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
     if args.list || args.details {
-        let files = list_files(&args.path.join(".anek/inputs"))?;
+        let files = list_files_sorted(&args.path.join(".anek/inputs"))?;
 
         for file in files {
-            let file = file.unwrap();
-            let filename = file.file_name().to_str().unwrap().to_string();
-            print_input_info(&filename, &file.path(), args.details)?;
+            let filename = file.file_name().unwrap().to_str().unwrap().to_string();
+            print_input_info(&filename, &file, args.details)?;
         }
     } else if let Some(name) = args.info {
         print_input_info(&name, &args.path.join(".anek/inputs").join(&name), true)?;
