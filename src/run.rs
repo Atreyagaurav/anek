@@ -115,7 +115,7 @@ pub fn exec_pipeline(
             Err(e) => return Err(e.to_string()),
         };
         if !pipable {
-            println!("{} ({}): ", "Command".bright_green(), name);
+            print!("{} ({}): ", "Command".bright_green(), name);
         }
         println!("{}", cmd);
         if !(demo || pipable) {
@@ -181,8 +181,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             args.demo,
             args.pipable,
         )?;
-    }
-    if let Some(batch) = args.batch {
+    } else if let Some(batch) = args.batch {
         let batch_lines = input::input_lines(&args.path.join(".anek/batch").join(batch))?;
         for (i, line) in batch_lines {
             if !args.pipable {
@@ -197,8 +196,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 args.pipable,
             )?;
         }
-    }
-    if let Some(loop_name) = args.r#loop {
+    } else if let Some(loop_name) = args.r#loop {
         let loop_inputs = input::loop_inputs(&args.path.join(".anek/loops").join(loop_name))?;
 
         let permutations = loop_inputs
@@ -245,6 +243,14 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             )?;
             loop_index += 1;
         }
+    } else {
+        exec_pipeline(
+            &pipeline_templates,
+            &args.path,
+            &overwrite,
+            args.demo,
+            args.pipable,
+        )?;
     }
     Ok(())
 }

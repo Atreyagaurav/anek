@@ -16,6 +16,10 @@ pub struct CliArgs {
     #[arg(short, long, action)]
     input: bool,
     /// Favorites
+    ///
+    /// List the files you've saved as favorites, the --filter command
+    /// will filter the files including the variable value as
+    /// non-empty
     #[arg(short, long, action)]
     favorite: bool,
     /// Commands
@@ -98,9 +102,13 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                         input::input_lines(&args.path.join(".anek/favorites").join(f)).unwrap();
                     let mut input_map: HashMap<&str, &str> = HashMap::new();
                     input::read_inputs(&lines, &mut input_map).unwrap();
-                    args.filter
-                        .iter()
-                        .all(|f| input_map.contains_key(f.as_str()))
+                    args.filter.iter().all(|f| {
+                        if let Some(key) = input_map.get(f.as_str()) {
+                            !key.is_empty()
+                        } else {
+                            false
+                        }
+                    })
                 })
                 .map(|s| s.to_string())
                 .collect()
