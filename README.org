@@ -1,0 +1,60 @@
+* Introduction
+This program can help you run commands that are defined as templates over different inputs.
+
+Everything including the template commands and the input informations are stored inside the ~.anek~ directory. The working directory will be the current one unless specified. Although the command can work on other directory given as the path at the end, the autocomplete script will only work for the current directory.
+
+* TODO Demo
+
+* Installation
+Use cargo to compile the program, and then copy that binary to your path.
+#+begin_src  bash
+cargo compile --release 
+#+end_src
+
+If you're using bash and want autocompletion, then you can copy ~completions/bash-completions.sh~ to somewhere it loads it (e.g. ~/usr/share/bash-completion/completions/anek~), or load it in ~.bashrc~. 
+
+* Commands
+
+** new
+Make a new configuration setup (directories) in current directory, or the path specified.
+
+#+begin_src  bash
+anek new  
+#+end_src
+
+** input
+Commands related to input files. Input files are not necessary to run any of the commands, as long as their values are provided in the terminal or the favorites files.
+
+Input files are helpful for using the completion features and to maintain the documentations about the inputs. You can write input files with the short description in the first line, and then full description.
+
+#+begin_src  bash
+anek input -l  
+#+end_src
+
+Scanning inputs will make empty files for new inputs.
+#+begin_src  bash
+anek input -s
+#+end_src
+
+** list
+List available things like favorites, batches, commands, pipelines etc. It is mostly used for generating autocomplete. But users can also use it to list the available options for them.
+
+** edit
+Edit or view files inside ~.anek~. It basically just calls your editor, so consider this a shortcut for calling your ~EDITOR~. You shouldn't specify the full path, but relative path from inside ~.anek~. 
+
+All the valid paths can be listed using ~anek list -a~. Completion will help you there by proving them.
+
+Example:
+#+begin_src  bash
+anek edit inputs/name
+#+end_src
+
+** TODO run
+Main command to run the commands or pipelines. 
+
+** completions
+prints bash completion. It's for internal use for now. Since the ~clap_complete~ doesn't have the features to generate the completions using a shell commmand from inside rust yet. I'm editing the output from this manually and providing it separately. I haven't tried it for other shells.
+
+I'll probably make it specify shells so that people can generate the rudimentary completion for other shells.
+
+# sudo cp completions/bash-completions.sh /usr/share/bash-completion/completions/anek
