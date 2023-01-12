@@ -12,30 +12,73 @@ use crate::input;
 #[command(group = ArgGroup::new("action").required(true).multiple(false))]
 pub struct CliArgs {
     /// command to run (from .anek/commands/)
+    ///
+    /// The command file saved will have the command template inside
+    /// it
     #[arg(short, long, group="action", value_hint = ValueHint::Other)]
     command: Option<String>,
     /// Command template to run
+    ///
+    /// Command templates are bash commands with variables enclosed in
+    /// curly braces. e.g. --command-template 'echo {mean}', will run
+    /// echo with value of `mean` as the first argument.
     #[arg(short = 'C', long, group="action", value_hint = ValueHint::CommandName)]
     command_template: Option<String>,
     /// Run a pipeline
+    ///
+    /// Pipeline has a list of command that are run one after another,
+    /// those command list has to be relative path from
+    /// .anek/commands/
     #[arg(short, long, group="action", value_hint = ValueHint::Other)]
     pipeline: Option<String>,
     /// Run from batch
+    ///
+    /// Batch file are list of input files that are run one after
+    /// another on the same command template. The list of input files
+    /// need to be relative to .anek/
     #[arg(short, long, value_hint = ValueHint::Other, conflicts_with="favorite")]
     batch: Option<String>,
-    /// Run batch by looping for the inputs
+    /// Run commands by looping for the inputs
+    ///
+    /// Loops though the values of the input variables in the loop
+    /// config and run the command templates on the combinations of
+    /// those different variables.
     #[arg(short, long, value_hint = ValueHint::Other)]
     r#loop: Option<String>,
     /// Run from favorites
+    ///
+    /// Use the input variables' values defined in the favorites file
+    /// as input to fill the tempalte and run it. You can specify a
+    /// directory, and it'll use all the files inside to fill the
+    /// template, in this case duplicate variable names will have only
+    /// the last read value (alphabetically, then outside to inside
+    /// recursively)
     #[arg(short, long, value_hint = ValueHint::Other)]
     favorite: Option<String>,
     /// Print commands in pipable format, assumes --demo
+    ///
+    /// This one will only print the commands without executing them
+    /// or printing any other informations. You can pipe it to bash or
+    /// gnu parallel or any other commands to run it, or process it
+    /// further.
     #[arg(short = 'P', long)]
     pipable: bool,
     /// Demo only, don't run the actual command
+    ///
+    /// Does everything but skips running the command, you can make
+    /// sure it's what you want to run before running it.
     #[arg(short, long)]
     demo: bool,
     /// Overwrite input variables
+    ///
+    /// Provide variables to be overwritten in the input config. If
+    /// you have no input config the it'll be used to fill the
+    /// template. Otherwise it'll be added to that, it'll replace if
+    /// there are same variables with different names. In case of
+    /// batch file, it'll replace it for each input file, and in case
+    /// of loop, it does the same, but in addition, if the loop has
+    /// multiple values for the variable that you are overwriting,
+    /// then it'll no longer use any of those values to loop.
     #[arg(short, long, value_hint = ValueHint::Other)]
     overwrite: Vec<String>,
     #[arg(default_value = ".", value_hint = ValueHint::DirPath)]

@@ -4,22 +4,24 @@ This program can help you run commands that are defined as templates over differ
 Everything including the template commands and the input informations are stored inside the ~.anek~ directory. The working directory will be the current one unless specified. Although the command can work on other directory given as the path at the end, the autocomplete script will only work for the current directory.
 
 * TODO Demo
+Demo video with explanation coming soon.
 
 * Installation
 Use cargo to compile the program, and then copy that binary to your path.
 #+begin_src  bash
-cargo compile --release 
+cargo compile --release
 #+end_src
 
-If you're using bash and want autocompletion, then you can copy ~completions/bash-completions.sh~ to somewhere it loads it (e.g. ~/usr/share/bash-completion/completions/anek~), or load it in ~.bashrc~. 
+If you're using bash and want autocompletion, then you can copy ~completions/bash-completions.sh~ to somewhere it loads it (e.g. ~/usr/share/bash-completion/completions/anek~, ~/etc/bash_completion.d/anek~, etc), or load it in ~.bashrc~ yourself.
 
 * Commands
+The commands that are available till now are these. Please feel free to use the help from the command itself to look at the available commands in your version, and their usages.
 
 ** new
 Make a new configuration setup (directories) in current directory, or the path specified.
 
 #+begin_src  bash
-anek new  
+anek new
 #+end_src
 
 ** input
@@ -28,7 +30,7 @@ Commands related to input files. Input files are not necessary to run any of the
 Input files are helpful for using the completion features and to maintain the documentations about the inputs. You can write input files with the short description in the first line, and then full description.
 
 #+begin_src  bash
-anek input -l  
+anek input -l
 #+end_src
 
 Scanning inputs will make empty files for new inputs.
@@ -40,7 +42,7 @@ anek input -s
 List available things like favorites, batches, commands, pipelines etc. It is mostly used for generating autocomplete. But users can also use it to list the available options for them.
 
 ** edit
-Edit or view files inside ~.anek~. It basically just calls your editor, so consider this a shortcut for calling your ~EDITOR~. You shouldn't specify the full path, but relative path from inside ~.anek~. 
+Edit or view files inside ~.anek~. It basically just calls your editor, so consider this a shortcut for calling your ~EDITOR~. You shouldn't specify the full path, but relative path from inside ~.anek~.
 
 All the valid paths can be listed using ~anek list -a~. Completion will help you there by proving them.
 
@@ -49,12 +51,41 @@ Example:
 anek edit inputs/name
 #+end_src
 
-** TODO run
-Main command to run the commands or pipelines. 
+** run
+Main command to run/print the commands or pipelines.
+
+To run something, you need a command, and if the command has some template variables then you need those input variable.
+*** Command
+There are 3 ways to give commands to run. Either you give a command template form the terminal, from command file saved, or you can give a pipeline which is a sequence of command files.
+**** Command template
+You can give a template, and then it'll run it.
+**** Command
+You can give the name of the command file saved inside anek commands and it'll run it.
+**** Pipeline
+You give the name of the pipeline and it'll run the commands one by one.
+*** Inputs
+If your command has no inputs needed, it can run as it is. But if it does, then you can specify them in these 4 ways.
+**** Favorites
+You can save values of input variables as favorites, and then pass that as input, it'll use them to fill the template and run it.
+
+You can give a favorites file, or directory. If file, then it'll read those inputs. If directory then it'll use all the files inside that directory recursively and make a hashmap, so if you have repeated variables it'll be replace.
+
+Given a directory, it is supposed to read the files alphabetically in one depth, and then recursively inside. Might be more meaningful to have the variable from file outside overwrite those inside directories but I haven't implemented that.
+**** Overwrite
+This command can be used to overwrite the values provided with other commands, but you can also use it standalone and use them as inputs without having to load them from any files.
+**** Batch
+You can make a batch file with list in input files, the command will run in each one of the input files separately.
+**** Loop
+You can make a loop directory, inside it a file for each input you want. And the files should have the values for that variable. You need at least one value for all variable, anything more than that, then it'll be looped with one value at a time. You can have multiple input files with multiple values to have a different combinations of the inputs in the loop (2 values of input1 and 2 values of input2, will run it 4 times).
+
+*** Other options
+Other options are pipable and demo. Demo will only print the generated commands and not run it. Pipable will also print the commands but not anything else. So you can pipe those commands to other programs. For example you can pipe it to ~bash~ when you want to just run them without any other info, or you can pipe it to ~gnu parallel~ if you want to run those commands in parallel.
+
+Since pipable doesn't run the commands, you can also use it to print/list out some of the inputs, and then pipe it to awk/files/grep or anything.
 
 ** completions
 prints bash completion. It's for internal use for now. Since the ~clap_complete~ doesn't have the features to generate the completions using a shell commmand from inside rust yet. I'm editing the output from this manually and providing it separately. I haven't tried it for other shells.
 
-I'll probably make it specify shells so that people can generate the rudimentary completion for other shells.
+Look at installation instructions for how to instal the completions on bash.
 
-# sudo cp completions/bash-completions.sh /usr/share/bash-completion/completions/anek
+I'll probably make it specify shells so that people can generate the rudimentary completion for other shells.
