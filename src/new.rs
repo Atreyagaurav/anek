@@ -26,6 +26,8 @@ pub fn new_config(args: CliArgs) -> Result<(), String> {
         create_dir(filepath.join("favorites")).map_err(|e| e.to_string())?;
         create_dir(filepath.join("batch")).map_err(|e| e.to_string())?;
         create_dir(filepath.join("loop")).map_err(|e| e.to_string())?;
+        create_dir(filepath.join("commands")).map_err(|e| e.to_string())?;
+        create_dir(filepath.join("pipelines")).map_err(|e| e.to_string())?;
         create_dir(filepath.join("history")).map_err(|e| e.to_string())?;
         for inp in args.inputs {
             File::create(filepath.join("inputs").join(inp)).map_err(|e| e.to_string())?;
