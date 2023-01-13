@@ -6,6 +6,8 @@ use std::fs::{read_dir, File};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
+use crate::dtypes::{AnekDirectory, AnekDirectoryType};
+
 #[derive(Args)]
 #[command(group = ArgGroup::new("list_info").required(false).multiple(false))]
 pub struct CliArgs {
@@ -177,8 +179,10 @@ fn print_input_info(name: &str, path: &PathBuf, details: bool) -> Result<(), Str
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
+    let anek_dir = AnekDirectory::from(&args.path);
     if args.scan {
-        let files = list_files_sorted_recursive(&args.path.join(".anek/favorites"))?;
+        let files =
+            list_files_sorted_recursive(&anek_dir.get_directory(&AnekDirectoryType::Favorites))?;
         let mut inputs: HashSet<&str> = HashSet::new();
         let lines = files
             .iter()
@@ -189,7 +193,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .map(|lns| read_inputs_set(lns, &mut inputs))
             .collect::<Result<(), String>>()?;
         for input in inputs {
-            let input_file = args.path.join(".anek/inputs").join(input);
+            let input_file = anek_dir.get_file(&AnekDirectoryType::Inputs, &input);
             if !input_file.exists() {
                 println!("{}: {}", "New Input".red().bold(), input);
                 File::create(input_file).map_err(|e| e.to_string())?;
@@ -199,14 +203,20 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         }
     }
     if args.list || args.details {
-        let files = list_files_sorted(&args.path.join(".anek/inputs"))?;
+        let files = list_files_sorted(&anek_dir.get_directory(&AnekDirectoryType::Inputs))?;
 
         for file in files {
-            let filename = file.file_name().unwrap().to_str().unwrap().to_string();
-            print_input_info(&filename, &file, args.details)?;
+            if file.is_file() {
+                let filename = file.file_name().unwrap().to_str().unwrap().to_string();
+                print_input_info(&filename, &file, args.details)?;
+            }
         }
     } else if let Some(name) = args.info {
-        print_input_info(&name, &args.path.join(".anek/inputs").join(&name), true)?;
+        print_input_info(
+            &name,
+            &anek_dir.get_file(&AnekDirectoryType::Inputs, &name),
+            true,
+        )?;
     }
     Ok(())
 }

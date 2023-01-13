@@ -3,6 +3,8 @@ use std::env;
 use std::path::PathBuf;
 use subprocess::Exec;
 
+use crate::dtypes::AnekDirectory;
+
 #[derive(Args)]
 pub struct CliArgs {
     /// Show the contents of a file inside .anek
@@ -16,7 +18,7 @@ pub struct CliArgs {
 }
 
 pub fn edit_file(args: CliArgs) -> Result<(), String> {
-    let filepath = args.path.join(".anek").join(args.anek_file);
+    let filepath = AnekDirectory::from(&args.path).root.join(args.anek_file);
     if args.echo {
         let contents = match std::fs::read_to_string(filepath) {
             Ok(c) => c,

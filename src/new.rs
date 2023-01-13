@@ -2,6 +2,8 @@ use clap::{Args, ValueHint};
 use std::fs::{create_dir, File};
 use std::path::PathBuf;
 
+use crate::dtypes::{anekdirtype_iter, AnekDirectory, AnekDirectoryType};
+
 #[derive(Args)]
 pub struct CliArgs {
     /// Input files to be constructed
@@ -12,25 +14,24 @@ pub struct CliArgs {
 }
 
 pub fn new_config(args: CliArgs) -> Result<(), String> {
-    let filepath = args.path.join(".anek");
-    if filepath.exists() {
-        if filepath.is_dir() {
-            return Err(format!("{:?} already exists", filepath));
+    let filepath = AnekDirectory::from(&args.path);
+    if filepath.root.exists() {
+        if filepath.root.is_dir() {
+            return Err(format!("{:?} already exists", filepath.root));
         } else {
-            return Err(format!("{:?} file exists which is not a anek configuration, pleae remove that before continuing", filepath));
+            return Err(
+                format!("{:?} file exists which is not a anek configuration, pleae remove that before continuing", filepath.root),
+            );
         }
     } else {
-        create_dir(&filepath).map_err(|e| e.to_string())?;
-        // todo check spellings : make a enum for this
-        create_dir(filepath.join("inputs")).map_err(|e| e.to_string())?;
-        create_dir(filepath.join("favorites")).map_err(|e| e.to_string())?;
-        create_dir(filepath.join("batch")).map_err(|e| e.to_string())?;
-        create_dir(filepath.join("loop")).map_err(|e| e.to_string())?;
-        create_dir(filepath.join("commands")).map_err(|e| e.to_string())?;
-        create_dir(filepath.join("pipelines")).map_err(|e| e.to_string())?;
-        create_dir(filepath.join("history")).map_err(|e| e.to_string())?;
+        create_dir(&filepath.root).map_err(|e| e.to_string())?;
+
+        for adt in anekdirtype_iter() {
+            create_dir(filepath.get_directory(adt)).map_err(|e| e.to_string())?;
+        }
         for inp in args.inputs {
-            File::create(filepath.join("inputs").join(inp)).map_err(|e| e.to_string())?;
+            File::create(filepath.get_file(&AnekDirectoryType::Inputs, &inp))
+                .map_err(|e| e.to_string())?;
         }
     }
     Ok(())

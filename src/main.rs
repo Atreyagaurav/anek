@@ -4,6 +4,7 @@ use colored::Colorize;
 use std::io;
 use std::time::Instant;
 
+mod dtypes;
 mod edit;
 mod input;
 mod list;
