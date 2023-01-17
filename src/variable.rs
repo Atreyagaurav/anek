@@ -11,20 +11,20 @@ use crate::dtypes::{AnekDirectory, AnekDirectoryType};
 #[derive(Args)]
 #[command(group = ArgGroup::new("list_info").required(false).multiple(false))]
 pub struct CliArgs {
-    /// Scan the favorites files for input parameters
+    /// Scan the input files for variables
     ///
-    /// If scanned inputs are not listed, then it'll add a empty file
-    /// with that name inside .anek/inputs/
+    /// If scanned variables are not listed, then it'll add a empty file
+    /// with that name inside .anek/variables/
     #[arg(short, long, action)]
     scan: bool,
-    /// List the inputs with short description
+    /// List the variables with short description
     #[arg(short, long, group = "list_info", action)]
     list: bool,
-    /// List the inputs with long description (assumes --list)
+    /// List the variables with long description (assumes --list)
     #[arg(short, long, group = "list_info", action)]
     details: bool,
-    /// Gives long description of the input
-    #[arg(short, long, group = "list_info", value_hint = ValueHint::Other, value_name="INPUT")]
+    /// Gives long description of the variable
+    #[arg(short, long, group = "list_info", value_hint = ValueHint::Other, value_name="VAR")]
     info: Option<String>,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
     path: PathBuf,
@@ -156,7 +156,7 @@ pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>
     Ok(input_values)
 }
 
-fn print_input_info(name: &str, path: &PathBuf, details: bool) -> Result<(), String> {
+fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), String> {
     let file = match File::open(path) {
         Ok(f) => f,
         Err(e) => return Err(format!("Couldn't open input file: {:?}\n{:?}", &path, e)),
@@ -182,39 +182,39 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     let anek_dir = AnekDirectory::from(&args.path);
     if args.scan {
         let files =
-            list_files_sorted_recursive(&anek_dir.get_directory(&AnekDirectoryType::Favorites))?;
-        let mut inputs: HashSet<&str> = HashSet::new();
+            list_files_sorted_recursive(&anek_dir.get_directory(&AnekDirectoryType::Inputs))?;
+        let mut vars: HashSet<&str> = HashSet::new();
         let lines = files
             .iter()
             .map(|file| input_lines(&file))
             .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
         lines
             .iter()
-            .map(|lns| read_inputs_set(lns, &mut inputs))
+            .map(|lns| read_inputs_set(lns, &mut vars))
             .collect::<Result<(), String>>()?;
-        for input in inputs {
-            let input_file = anek_dir.get_file(&AnekDirectoryType::Inputs, &input);
-            if !input_file.exists() {
-                println!("{}: {}", "New Input".red().bold(), input);
-                File::create(input_file).map_err(|e| e.to_string())?;
-            } else if !input_file.is_file() {
-                return Err(format!("{:?} is not a file", input_file));
+        for var in vars {
+            let var_file = anek_dir.get_file(&AnekDirectoryType::Variables, &var);
+            if !var_file.exists() {
+                println!("{}: {}", "New Input".red().bold(), var);
+                File::create(var_file).map_err(|e| e.to_string())?;
+            } else if !var_file.is_file() {
+                return Err(format!("{:?} is not a file", var_file));
             }
         }
     }
     if args.list || args.details {
-        let files = list_files_sorted(&anek_dir.get_directory(&AnekDirectoryType::Inputs))?;
+        let files = list_files_sorted(&anek_dir.get_directory(&AnekDirectoryType::Variables))?;
 
         for file in files {
             if file.is_file() {
                 let filename = file.file_name().unwrap().to_str().unwrap().to_string();
-                print_input_info(&filename, &file, args.details)?;
+                print_variable_info(&filename, &file, args.details)?;
             }
         }
     } else if let Some(name) = args.info {
-        print_input_info(
+        print_variable_info(
             &name,
-            &anek_dir.get_file(&AnekDirectoryType::Inputs, &name),
+            &anek_dir.get_file(&AnekDirectoryType::Variables, &name),
             true,
         )?;
     }

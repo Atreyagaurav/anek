@@ -6,9 +6,9 @@ use crate::dtypes::{anekdirtype_iter, AnekDirectory, AnekDirectoryType};
 
 #[derive(Args)]
 pub struct CliArgs {
-    /// Input files to be constructed
+    /// Variables files to be constructed
     #[arg(short, long, value_delimiter = ',')]
-    inputs: Vec<String>,
+    variables: Vec<String>,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
     path: PathBuf,
 }
@@ -29,8 +29,8 @@ pub fn new_config(args: CliArgs) -> Result<(), String> {
         for adt in anekdirtype_iter() {
             create_dir(filepath.get_directory(adt)).map_err(|e| e.to_string())?;
         }
-        for inp in args.inputs {
-            File::create(filepath.get_file(&AnekDirectoryType::Inputs, &inp))
+        for var in args.variables {
+            File::create(filepath.get_file(&AnekDirectoryType::Variables, &var))
                 .map_err(|e| e.to_string())?;
         }
     }

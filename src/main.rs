@@ -5,10 +5,10 @@ use std::time::Instant;
 mod completions;
 mod dtypes;
 mod edit;
-mod input;
 mod list;
 mod new;
 mod run;
+mod variable;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -34,17 +34,17 @@ enum Action {
     /// directory, or the path specified. if you provide input
     /// arguments, it'll also add those to input directory.
     New(new::CliArgs),
-    /// Input related commands
+    /// Variable related commands
     ///
-    /// Commands related to input files. Input files are not necessary
+    /// Commands related to variable files. Variable files are not necessary
     /// to run any of the commands, as long as their values are
     /// provided in the terminal or the favorites files.
     ///
-    /// Input files are helpful for using the completion features and
+    /// Variable files are helpful for using the completion features and
     /// to maintain the documentations about the inputs. You can write
-    /// input files with the short description in the first line, and
+    /// variable files with the short description in the first line, and
     /// then full description.
-    Input(input::CliArgs),
+    Variable(variable::CliArgs),
     /// list things
     ///
     /// List available things like favorites, batches, commands,
@@ -66,7 +66,7 @@ enum Action {
     ///
     /// Main command to run/print the commands or pipelines.
     Run(run::CliArgs),
-    /// Print completions for bash
+    /// Print completions
     Completions(completions::CliArgs),
 }
 
@@ -76,7 +76,7 @@ fn main() {
     let start = Instant::now();
     let action_result = match args.action {
         Action::New(args) => new::new_config(args),
-        Action::Input(args) => input::run_command(args),
+        Action::Variable(args) => variable::run_command(args),
         Action::List(args) => list::list_options(args),
         Action::Edit(args) => edit::edit_file(args),
         Action::Run(args) => run::run_command(args),

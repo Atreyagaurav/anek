@@ -2,11 +2,11 @@ use core::slice::Iter;
 use std::path::PathBuf;
 
 pub enum AnekDirectoryType {
+    Variables,
     Inputs,
-    Favorites,
     Commands,
     Pipelines,
-    Loop,
+    Loops,
     Batch,
     History,
 }
@@ -14,11 +14,11 @@ pub enum AnekDirectoryType {
 impl AnekDirectoryType {
     pub fn dir_name(&self) -> &'static str {
         match self {
+            AnekDirectoryType::Variables => "variables",
             AnekDirectoryType::Inputs => "inputs",
-            AnekDirectoryType::Favorites => "favorites",
             AnekDirectoryType::Commands => "commands",
             AnekDirectoryType::Pipelines => "pipelines",
-            AnekDirectoryType::Loop => "loop",
+            AnekDirectoryType::Loops => "loops",
             AnekDirectoryType::Batch => "batch",
             AnekDirectoryType::History => "history",
         }
@@ -51,11 +51,11 @@ impl AnekDirectory {
 
 pub fn anekdirtype_iter() -> Iter<'static, AnekDirectoryType> {
     [
+        AnekDirectoryType::Variables,
         AnekDirectoryType::Inputs,
-        AnekDirectoryType::Favorites,
         AnekDirectoryType::Commands,
         AnekDirectoryType::Pipelines,
-        AnekDirectoryType::Loop,
+        AnekDirectoryType::Loops,
         AnekDirectoryType::Batch,
         AnekDirectoryType::History,
     ]

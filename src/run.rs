@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use subprocess::Exec;
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
-use crate::input;
+use crate::variable;
 
 #[derive(Args)]
 #[command(group = ArgGroup::new("action").required(true).multiple(false))]
@@ -55,7 +55,7 @@ pub struct CliArgs {
     /// the last read value (alphabetically, then outside to inside
     /// recursively)
     #[arg(short, long, value_hint = ValueHint::Other)]
-    favorite: Option<String>,
+    input: Option<String>,
     /// Print commands in pipable format, assumes --demo
     ///
     /// This one will only print the commands without executing them
@@ -96,7 +96,7 @@ pub fn exec_on_inputfile(
     name: &str,
 ) -> Result<(), String> {
     let files = if filename.is_dir() {
-        input::list_filenames(&filename)?
+        variable::list_filenames(&filename)?
             .iter()
             .map(|f| filename.join(f))
             .collect()
@@ -111,11 +111,11 @@ pub fn exec_on_inputfile(
     let mut input_map: HashMap<&str, &str> = HashMap::new();
     let lines = files
         .iter()
-        .map(|file| input::input_lines(&file))
+        .map(|file| variable::input_lines(&file))
         .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
     lines
         .iter()
-        .map(|l| input::read_inputs(&l, &mut input_map))
+        .map(|l| variable::read_inputs(&l, &mut input_map))
         .collect::<Result<(), String>>()?;
     input_map.extend(overwrite);
     let command = match cmd.render(&input_map) {
@@ -172,11 +172,11 @@ pub fn exec_pipeline(
 pub fn run_command(args: CliArgs) -> Result<(), String> {
     let anek_dir = AnekDirectory::from(&args.path);
     let pipeline_templates = if let Some(pipeline) = args.pipeline {
-        input::input_lines(&anek_dir.get_file(&AnekDirectoryType::Pipelines, &pipeline))?
+        variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Pipelines, &pipeline))?
             .iter()
             .map(
                 |(_, command)| -> Result<(String, String, Template), String> {
-                    match input::read_file_full(
+                    match variable::read_file_full(
                         &anek_dir.get_file(&AnekDirectoryType::Commands, &command),
                     ) {
                         Ok(s) => Ok((command.clone(), s.clone(), Template::new(s.trim()))),
@@ -188,7 +188,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .unwrap()
     } else if let Some(command) = args.command {
         let command_content =
-            input::read_file_full(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))?;
+            variable::read_file_full(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))?;
         vec![(
             command,
             command_content.clone(),
@@ -219,10 +219,10 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         }
     }
 
-    if let Some(favorite) = args.favorite {
+    if let Some(input) = args.input {
         exec_pipeline_on_inputfile(
             &pipeline_templates,
-            &anek_dir.get_file(&AnekDirectoryType::Favorites, &favorite),
+            &anek_dir.get_file(&AnekDirectoryType::Inputs, &input),
             &args.path,
             &overwrite,
             args.demo,
@@ -230,14 +230,14 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         )?;
     } else if let Some(batch) = args.batch {
         let batch_lines =
-            input::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, &batch))?;
+            variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, &batch))?;
         for (i, line) in batch_lines {
             if !args.pipable {
                 println!("{} [{}]: {}", "Job".bright_purple().bold(), i, line);
             }
             exec_pipeline_on_inputfile(
                 &pipeline_templates,
-                &anek_dir.root.join(line),
+                &anek_dir.get_file(&AnekDirectoryType::Inputs, &line),
                 &args.path,
                 &overwrite,
                 args.demo,
@@ -246,7 +246,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         }
     } else if let Some(loop_name) = args.r#loop {
         let loop_inputs =
-            input::loop_inputs(&anek_dir.get_file(&AnekDirectoryType::Loop, &loop_name))?;
+            variable::loop_inputs(&anek_dir.get_file(&AnekDirectoryType::Loops, &loop_name))?;
 
         let permutations = loop_inputs
             .iter()
