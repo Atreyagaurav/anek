@@ -1,9 +1,8 @@
 use clap::{CommandFactory, Parser, Subcommand};
-use clap_complete;
 use colored::Colorize;
-use std::io;
 use std::time::Instant;
 
+mod completions;
 mod dtypes;
 mod edit;
 mod input;
@@ -68,15 +67,7 @@ enum Action {
     /// Main command to run/print the commands or pipelines.
     Run(run::CliArgs),
     /// Print completions for bash
-    Completions,
-}
-
-fn print_completions() -> Result<(), String> {
-    let shell = clap_complete::Shell::Bash;
-    let mut clap_app = Cli::command();
-    let app_name = clap_app.get_name().to_string();
-    clap_complete::generate(shell, &mut clap_app, app_name, &mut io::stdout());
-    Ok(())
+    Completions(completions::CliArgs),
 }
 
 fn main() {
@@ -89,7 +80,10 @@ fn main() {
         Action::List(args) => list::list_options(args),
         Action::Edit(args) => edit::edit_file(args),
         Action::Run(args) => run::run_command(args),
-        Action::Completions => print_completions(),
+        Action::Completions(args) => {
+            let mut clap_app = Cli::command();
+            completions::print_completions(args, &mut clap_app)
+        }
     };
     let duration = start.elapsed();
 
