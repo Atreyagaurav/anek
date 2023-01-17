@@ -24,18 +24,18 @@ Make a new configuration setup (directories) in current directory, or the path s
 anek new
 #+end_src
 
-** input
-Commands related to input files. Input files are not necessary to run any of the commands, as long as their values are provided in the terminal or the favorites files.
+** Variables
+Commands related to variable files. Variable files are not necessary to run any of the commands, as long as their values are provided in the terminal or the favorites files.
 
-Input files are helpful for using the completion features and to maintain the documentations about the inputs. You can write input files with the short description in the first line, and then full description.
+Variable files are helpful for using the completion features and to maintain the documentations about the variables. You can write variable files with the short description in the first line, and then full description.
 
 #+begin_src  bash
-anek input -l
+anek variable -l
 #+end_src
 
-Scanning inputs will make empty files for new inputs.
+Scanning variables will make empty files for new variables.
 #+begin_src  bash
-anek input -s
+anek variable -s
 #+end_src
 
 ** list
@@ -65,10 +65,10 @@ You can give the name of the command file saved inside anek commands and it'll r
 You give the name of the pipeline and it'll run the commands one by one.
 *** Inputs
 If your command has no inputs needed, it can run as it is. But if it does, then you can specify them in these 4 ways.
-**** Favorites
-You can save values of input variables as favorites, and then pass that as input, it'll use them to fill the template and run it.
+**** Input File
+You can save values of variables as input files, and then pass that as input, it'll use them to fill the template and run it.
 
-You can give a favorites file, or directory. If file, then it'll read those inputs. If directory then it'll use all the files inside that directory recursively and make a hashmap, so if you have repeated variables it'll be replace.
+You can give a input file, or directory. If file, then it'll read those variables. If directory then it'll use all the files inside that directory recursively and make a hashmap, so if you have repeated variables it'll be replaced.
 
 Given a directory, it is supposed to read the files alphabetically in one depth, and then recursively inside. Might be more meaningful to have the variable from file outside overwrite those inside directories but I haven't implemented that.
 **** Overwrite
@@ -84,8 +84,10 @@ Other options are pipable and demo. Demo will only print the generated commands 
 Since pipable doesn't run the commands, you can also use it to print/list out some of the inputs, and then pipe it to awk/files/grep or anything.
 
 ** completions
-prints bash completion. It's for internal use for now. Since the ~clap_complete~ doesn't have the features to generate the completions using a shell commmand from inside rust yet. I'm editing the output from this manually and providing it separately. I haven't tried it for other shells.
+Prints completion for shells. It's for internal use for now, though you can get completions for you from this.
 
-Look at installation instructions for how to instal the completions on bash.
+Since the ~clap_complete~ doesn't have the features to generate the completions using a shell commmand from inside rust yet. I'm editing the output from this manually and providing it separately for bash. I haven't tried it for other shells.
+
+Look at installation instructions for how to install the completions on bash.
 
 I'll probably make it specify shells so that people can generate the rudimentary completion for other shells.

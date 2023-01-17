@@ -21,14 +21,17 @@ _anek() {
             anek,help)
                 cmd="anek__help"
                 ;;
-            anek,input)
-                cmd="anek__input"
-                ;;
             anek,list)
                 cmd="anek__list"
                 ;;
+            anek,new)
+                cmd="anek__new"
+                ;;
             anek,run)
                 cmd="anek__run"
+                ;;
+            anek,variable)
+                cmd="anek__variable"
                 ;;
             anek__help,completions)
                 cmd="anek__help__completions"
@@ -39,14 +42,17 @@ _anek() {
             anek__help,help)
                 cmd="anek__help__help"
                 ;;
-            anek__help,input)
-                cmd="anek__help__input"
-                ;;
             anek__help,list)
                 cmd="anek__help__list"
                 ;;
+            anek__help,new)
+                cmd="anek__help__new"
+                ;;
             anek__help,run)
                 cmd="anek__help__run"
+                ;;
+            anek__help,variable)
+                cmd="anek__help__variable"
                 ;;
             *)
                 ;;
@@ -55,7 +61,7 @@ _anek() {
 
     case "${cmd}" in
         anek)
-            opts="-q -h -V --quiet --help --version input list edit run completions help"
+            opts="-q -h -V --quiet --help --version new variable list edit run completions help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -69,7 +75,7 @@ _anek() {
             return 0
             ;;
         anek__completions)
-            opts="-h --help"
+            opts="-b -z -f -h --bash --zsh --fish --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -90,14 +96,14 @@ _anek() {
             fi
             case "${prev}" in
                 *)
-		    COMPREPLY=()
+                    COMPREPLY=()
                     ;;
             esac
             COMPREPLY=( $(compgen -W "$(anek -q list -a)" -- "${cur}") )
             return 0
             ;;
         anek__help)
-            opts="input list edit run completions help"
+            opts="new variable list edit run completions help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -152,7 +158,7 @@ _anek() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        anek__help__input)
+        anek__help__list)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -166,7 +172,7 @@ _anek() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        anek__help__list)
+        anek__help__new)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -194,19 +200,33 @@ _anek() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        anek__input)
-            opts="-l -d -i -h --list --details --info --help [PATH]"
+        anek__help__variable)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__list)
+            opts="-F -a -v -i -c -p -l -b -h --filter --all --variables --inputs --command --pipeline --loops --batch --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --info)
-                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
+                --filter)
+                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
                     return 0
                     ;;
-                -i)
-                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
+                -F)
+                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
                     return 0
                     ;;
                 *)
@@ -216,19 +236,19 @@ _anek() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        anek__list)
-            opts="-F -a -i -f -c -p -l -b -h --filter --all --input --favorite --command --pipeline --loops --batch --help [PATH]"
+        anek__new)
+            opts="-v -h --variables --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --filter)
-                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
+                --variables)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                -F)
-                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
+                -v)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 *)
@@ -239,7 +259,7 @@ _anek() {
             return 0
             ;;
         anek__run)
-            opts="-c -C -p -b -l -f -P -d -o -h --command --command-template --pipeline --batch --loop --favorite --pipable --demo --overwrite --help [PATH]"
+            opts="-c -C -p -b -l -i -P -d -o -h --command --command-template --pipeline --batch --loop --input --pipable --demo --overwrite --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -285,20 +305,42 @@ _anek() {
                     COMPREPLY=($(compgen -W "$(anek -q list -l)" -- "${cur}"))
                     return 0
                     ;;
-                --favorite)
-                    COMPREPLY=($(compgen -W "$(anek -q list -f)" -- "${cur}"))
+                --input)
+                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
                     return 0
                     ;;
-                -f)
-                    COMPREPLY=($(compgen -W "$(anek -q list -f)" -- "${cur}"))
+                -i)
+                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
                     return 0
                     ;;
                 --overwrite)
-                    COMPREPLY=($(compgen -S ":" -W "$(anek -q list -i)" -- "${cur}"))
+                    COMPREPLY=($(compgen -S ":" -W "$(anek -q list -v)" -- "${cur}"))
                     return 0
                     ;;
                 -o)
-                    COMPREPLY=($(compgen -S ":" -W "$(anek -q list -i)" -- "${cur}"))
+                    COMPREPLY=($(compgen -S ":" -W "$(anek -q list -v)" -- "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__variable)
+            opts="-s -l -d -i -h --scan --list --details --info --help [PATH]"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --info)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -i)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 *)
