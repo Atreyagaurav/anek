@@ -82,7 +82,7 @@ pub struct CliArgs {
     /// of loop, it does the same, but in addition, if the loop has
     /// multiple values for the variable that you are overwriting,
     /// then it'll no longer use any of those values to loop.
-    #[arg(short, long, value_hint = ValueHint::Other)]
+    #[arg(short, long, value_delimiter=',', value_hint = ValueHint::Other)]
     overwrite: Vec<String>,
     #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
     path: PathBuf,
@@ -119,7 +119,19 @@ pub fn exec_on_inputfile(
         .iter()
         .map(|l| variable::read_inputs(&l, &mut input_map))
         .collect::<Result<(), String>>()?;
-    input_map.extend(overwrite);
+    // render the metavariables in the overwrite
+    let overwrite_meta: Vec<(&str, String)> = overwrite
+        .iter()
+        .map(|(k, v)| -> Result<(&str, String), String> {
+            Template::new(v.to_string())
+                .render(&input_map)
+                .and_then(|s| Ok((*k, s)))
+                .map_err(|e| e.to_string())
+        })
+        .collect::<Result<Vec<(&str, String)>, String>>()?;
+    for (k, v) in &overwrite_meta {
+        input_map.insert(k, &v);
+    }
     let command = match cmd.render(&input_map) {
         Ok(c) => c,
         Err(e) => return Err(e.to_string()),
@@ -214,7 +226,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     let mut overwrite: HashMap<&str, &str> = HashMap::new();
     if args.overwrite.len() > 0 {
         for vars in &args.overwrite {
-            let mut split_data = vars.split(":");
+            let mut split_data = vars.split(":").map(|s| s.split("=")).flatten();
             overwrite.insert(
                 match split_data.next() {
                     Some(d) => d,
@@ -225,6 +237,9 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                     None => return Err(format!("Invalid Value in overwrite: {}", vars)),
                 },
             );
+            while let Some(d) = split_data.next() {
+                eprintln!("Unused data from --overwrite: {}", d);
+            }
         }
     }
 
@@ -276,6 +291,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             })
             .map(|inps| {
                 if let Some(value) = overwrite.get(inps[0].0.as_str()) {
+                    // TODO, make overwrite metavariables work with loop too.
                     vec![(inps[0].0.clone(), 0, value.to_string())]
                 } else {
                     inps.to_vec()
