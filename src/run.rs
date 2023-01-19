@@ -15,7 +15,8 @@ pub struct CliArgs {
     /// command to run (from .anek/commands/)
     ///
     /// The command file saved will have the command template inside
-    /// it
+    /// it. And it'll run that command (filling it with variables'
+    /// values if there are some).
     #[arg(short, long, group="action", value_hint = ValueHint::Other)]
     command: Option<String>,
     /// Command template to run
@@ -29,14 +30,15 @@ pub struct CliArgs {
     ///
     /// Pipeline has a list of command that are run one after another,
     /// those command list has to be relative path from
-    /// .anek/commands/
+    /// .anek/commands/, use `anek list -c` for possible commands.
     #[arg(short, long, group="action", value_hint = ValueHint::Other)]
     pipeline: Option<String>,
     /// Run from batch
     ///
     /// Batch file are list of input files that are run one after
     /// another on the same command template. The list of input files
-    /// need to be relative to .anek/
+    /// need to be relative to .anek/inputs/, run `anek list -i` for
+    /// possible input files.
     #[arg(short, long, value_hint = ValueHint::Other, conflicts_with="favorite")]
     batch: Option<String>,
     /// Run commands by looping for the inputs
@@ -46,17 +48,16 @@ pub struct CliArgs {
     /// those different variables.
     #[arg(short, long, value_hint = ValueHint::Other)]
     r#loop: Option<String>,
-    /// Run from favorites
+    /// Run from inputs
     ///
-    /// Use the input variables' values defined in the favorites file
-    /// as input to fill the tempalte and run it. You can specify a
-    /// directory, and it'll use all the files inside to fill the
-    /// template, in this case duplicate variable names will have only
-    /// the last read value (alphabetically, then outside to inside
-    /// recursively)
+    /// Use the variables' values defined in the inputs file to fill
+    /// the tempalte and run it. You can specify a directory, and
+    /// it'll use all the files inside to fill the template, in this
+    /// case duplicate variable names will have only the last read
+    /// value (alphabetically, then outside to inside recursively)
     #[arg(short, long, value_hint = ValueHint::Other)]
     input: Option<String>,
-    /// Print commands in pipable format, assumes --demo
+    /// Print commands only so you can pipe it, assumes --demo
     ///
     /// This one will only print the commands without executing them
     /// or printing any other informations. You can pipe it to bash or

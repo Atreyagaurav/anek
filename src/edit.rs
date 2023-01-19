@@ -11,6 +11,9 @@ pub struct CliArgs {
     #[arg(short, long)]
     echo: bool,
     /// The file inside .anek
+    ///
+    /// Use relative path starting from .anek, the possible paths are
+    /// the same ones from `anek list` command output
     #[arg(value_hint = ValueHint::Other)]
     anek_file: String,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]

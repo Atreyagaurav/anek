@@ -7,6 +7,11 @@ use crate::dtypes::{anekdirtype_iter, AnekDirectory, AnekDirectoryType};
 #[derive(Args)]
 pub struct CliArgs {
     /// Variables files to be constructed
+    ///
+    /// Will make empty files with names of the variables provided,
+    /// use comma to separate multiple variable names. You can use the
+    /// scan function later to add the variable files automatically
+    /// once you have input files with some variables.
     #[arg(short, long, value_delimiter = ',')]
     variables: Vec<String>,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]

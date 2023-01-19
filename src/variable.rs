@@ -1,6 +1,7 @@
 use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
+use regex::Regex;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_dir, File};
 use std::io::{BufRead, BufReader};
@@ -10,17 +11,29 @@ use crate::dtypes::{AnekDirectory, AnekDirectoryType};
 
 #[derive(Args)]
 #[command(group = ArgGroup::new("list_info").required(false).multiple(false))]
+#[command(group = ArgGroup::new("scan").required(false).multiple(true))]
 pub struct CliArgs {
     /// Scan the input files for variables
     ///
-    /// If scanned variables are not listed, then it'll add a empty file
-    /// with that name inside .anek/variables/
-    #[arg(short, long, action)]
-    scan: bool,
+    /// Scan the input files for any variables that are not in the
+    /// variables directory
+    #[arg(short, long, group = "scan", action)]
+    scan_inputs: bool,
+    /// Scan the command files for variables
+    ///
+    /// Scan the command files for any variables that are not in the
+    /// variables directory
+    #[arg(short = 'S', long, group = "scan", action)]
+    scan_commands: bool,
+    /// Add files for the new variables detected by scan
+    ///
+    /// It'll add a empty file with that name inside .anek/variables/
+    #[arg(short, long, action, requires = "scan")]
+    add: bool,
     /// List the variables with short description
     #[arg(short, long, group = "list_info", action)]
     list: bool,
-    /// List the variables with long description (assumes --list)
+    /// List the variables with long description
     #[arg(short, long, group = "list_info", action)]
     details: bool,
     /// Gives long description of the variable
@@ -72,6 +85,21 @@ pub fn read_inputs_set<'a>(
             Some(d) => d,
             None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
         });
+    }
+    Ok(())
+}
+
+pub fn read_inputs_set_from_commands<'a>(
+    enum_lines: &'a Vec<(usize, String)>,
+    input_map: &mut HashSet<&'a str>,
+    cmd_re: &regex::Regex,
+    cmd_re_n: usize,
+) -> Result<(), String> {
+    for (_, line) in enum_lines {
+        for cap in cmd_re.captures_iter(line) {
+            let cg = cap.get(cmd_re_n).unwrap();
+            input_map.insert(&line[cg.start()..cg.end()]);
+        }
     }
     Ok(())
 }
@@ -191,26 +219,44 @@ fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), 
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
     let anek_dir = AnekDirectory::from(&args.path);
-    if args.scan {
+    let mut vars: HashSet<&str> = HashSet::new();
+    let inp_lines: Vec<Vec<(usize, String)>>;
+    let cmd_lines: Vec<Vec<(usize, String)>>;
+    if args.scan_inputs {
         let files =
             list_files_sorted_recursive(&anek_dir.get_directory(&AnekDirectoryType::Inputs))?;
-        let mut vars: HashSet<&str> = HashSet::new();
-        let lines = files
+
+        inp_lines = files
             .iter()
             .map(|file| input_lines(&file, None))
             .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
-        lines
+        inp_lines
             .iter()
             .map(|lns| read_inputs_set(lns, &mut vars))
             .collect::<Result<(), String>>()?;
-        for var in vars {
-            let var_file = anek_dir.get_file(&AnekDirectoryType::Variables, &var);
-            if !var_file.exists() {
-                println!("{}: {}", "New".red().bold(), var);
+    }
+    let cmd_re = Regex::new(r"\{(\w+)\}").unwrap();
+    if args.scan_commands {
+        let files =
+            list_files_sorted_recursive(&anek_dir.get_directory(&AnekDirectoryType::Commands))?;
+        cmd_lines = files
+            .iter()
+            .map(|file| input_lines(&file, None))
+            .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
+        cmd_lines
+            .iter()
+            .map(|lines| read_inputs_set_from_commands(lines, &mut vars, &cmd_re, 1))
+            .collect::<Result<(), String>>()?;
+    }
+    for var in vars {
+        let var_file = anek_dir.get_file(&AnekDirectoryType::Variables, &var);
+        if !var_file.exists() {
+            println!("{}: {}", "New".red().bold(), var);
+            if args.add {
                 File::create(var_file).map_err(|e| e.to_string())?;
-            } else if !var_file.is_file() {
-                return Err(format!("{:?} is not a file", var_file));
             }
+        } else if !var_file.is_file() {
+            return Err(format!("{:?} is not a file", var_file));
         }
     }
     if args.list || args.details {
