@@ -11,6 +11,7 @@ use crate::variable;
 
 #[derive(Args)]
 #[command(group = ArgGroup::new("action").required(true).multiple(false))]
+#[command(group = ArgGroup::new("variables").required(false).multiple(false))]
 pub struct CliArgs {
     /// command to run (from .anek/commands/)
     ///
@@ -39,14 +40,14 @@ pub struct CliArgs {
     /// another on the same command template. The list of input files
     /// need to be relative to .anek/inputs/, run `anek list -i` for
     /// possible input files.
-    #[arg(short, long, value_hint = ValueHint::Other, conflicts_with="favorite")]
+    #[arg(short, long, group="variables", value_hint = ValueHint::Other, conflicts_with="favorite")]
     batch: Option<String>,
     /// Run commands by looping for the inputs
     ///
     /// Loops though the values of the input variables in the loop
     /// config and run the command templates on the combinations of
     /// those different variables.
-    #[arg(short, long, value_hint = ValueHint::Other)]
+    #[arg(short, long, group="variables", value_hint = ValueHint::Other)]
     r#loop: Option<String>,
     /// Run from inputs
     ///
@@ -55,7 +56,7 @@ pub struct CliArgs {
     /// it'll use all the files inside to fill the template, in this
     /// case duplicate variable names will have only the last read
     /// value (alphabetically, then outside to inside recursively)
-    #[arg(short, long, value_hint = ValueHint::Other)]
+    #[arg(short, long, group="variables", value_hint = ValueHint::Other)]
     input: Option<String>,
     /// Print commands only so you can pipe it, assumes --demo
     ///
@@ -164,7 +165,10 @@ pub fn exec_pipeline(
         }
         println!("{}", cmd);
         if !(demo || pipable) {
-            Exec::shell(cmd).cwd(&wd).join().unwrap();
+            Exec::shell(cmd)
+                .cwd(&wd)
+                .join()
+                .map_err(|e| e.to_string())?;
         }
     }
     Ok(())
@@ -199,11 +203,12 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             Template::new(command_content.trim()),
         )]
     } else
-    // same as: if let Some(template) = args.command_template
-    // Since these 3 are in a group and there must be one of them
+    // same as: if let Some(template) = args.command_template Since
+    // these 3 are in a group and there must be one of them, inforced
+    // by the argument parser
     {
         let template = args.command_template.unwrap();
-        vec![("CMD".to_string(), template.clone(), Template::new(template))]
+        vec![("--".to_string(), template.clone(), Template::new(template))]
     };
 
     let mut overwrite: HashMap<&str, &str> = HashMap::new();
@@ -278,12 +283,12 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             })
             .multi_cartesian_product();
 
-        let mut loop_index = 1; // extra variables for loop template
+        let mut loop_index = 1; // extra variable for loop template
         let loop_total = permutations.clone().count();
         for inputs in permutations {
             let loop_index_str = loop_index.to_string();
             let mut input_map: HashMap<&str, &str> = HashMap::new();
-            input_map.insert("loop_index", &loop_index_str);
+            input_map.insert("LOOP_INDEX", &loop_index_str);
             if !args.pipable {
                 print!(
                     "{} [{} of {}]: ",
