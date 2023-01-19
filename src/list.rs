@@ -1,4 +1,4 @@
-use clap::{Args, ValueHint};
+use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
 use std::{collections::HashMap, path::PathBuf};
 
@@ -9,34 +9,47 @@ use crate::{
 };
 
 #[derive(Args)]
+#[command(group = ArgGroup::new("anek-type").required(false).multiple(false))]
 pub struct CliArgs {
     /// Filter list to those containing values
-    #[arg(short = 'F', long, value_delimiter = ',', value_hint = ValueHint::Other)]
+    #[arg(short = 'F', long, value_delimiter = ',', requires = "anek-type", value_hint = ValueHint::Other)]
     filter: Vec<String>,
-    /// All
-    #[arg(short, long, action, conflicts_with = "filter")]
-    all: bool,
     /// Variables
-    #[arg(short, long, action)]
+    ///
+    /// List the variables in the variables directory, if you use
+    /// --filter, it'll list only the variables with matchig text in
+    /// their description
+    #[arg(short, long, group = "anek-type", action)]
     variables: bool,
-    /// inputs
+    /// Inputs
     ///
     /// List the files you've saved as inputs, the --filter command
     /// will filter the files including the variable value as
     /// non-empty
-    #[arg(short, long, action)]
+    #[arg(short, long, group = "anek-type", action)]
     inputs: bool,
     /// Commands
-    #[arg(short, long, action)]
+    ///
+    ///
+    #[arg(short, long, group = "anek-type", action)]
     command: bool,
     /// Pipelines
-    #[arg(short, long, action)]
+    ///
+    /// List the pipelines files. The --filter will filter the
+    /// pipelines containing the given keyword as a command
+    #[arg(short, long, group = "anek-type", action)]
     pipeline: bool,
     /// Loops
-    #[arg(short, long, action)]
+    ///
+    /// List the files in loop directory, --filter will only list the
+    /// files that have the filter keyword in their path
+    #[arg(short, long, group = "anek-type", action)]
     loops: bool,
     /// Batch
-    #[arg(short, long, action)]
+    ///
+    /// List the batch files, --filter will filter the files
+    /// containing the inputs in the file
+    #[arg(short, long, group = "anek-type", action)]
     batch: bool,
     #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
     path: PathBuf,
@@ -50,21 +63,7 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
             args.path
         ));
     }
-    let paths = if args.all {
-        let all_dirs = anekdirtype_iter()
-            .map(|adt| variable::list_filenames(&anek_dir.get_directory(adt)))
-            .collect::<Result<Vec<Vec<String>>, String>>()?;
-        anekdirtype_iter()
-            .zip(all_dirs)
-            .map(|(adt, fnames)| {
-                fnames
-                    .iter()
-                    .map(|f| format!("{}/{}", adt.dir_name(), f))
-                    .collect::<Vec<String>>()
-            })
-            .flatten()
-            .collect()
-    } else if args.variables {
+    let paths = if args.variables {
         let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Variables))?;
         if args.filter.is_empty() {
             lst
@@ -73,6 +72,7 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                 .filter(|fnm| {
                     let lines = variable::input_lines(
                         &anek_dir.get_file(&AnekDirectoryType::Variables, &fnm),
+                        None,
                     )
                     .unwrap();
                     args.filter
@@ -89,9 +89,11 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
         } else {
             lst.iter()
                 .filter(|f| {
-                    let lines =
-                        variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Inputs, &f))
-                            .unwrap();
+                    let lines = variable::input_lines(
+                        &anek_dir.get_file(&AnekDirectoryType::Inputs, &f),
+                        None,
+                    )
+                    .unwrap();
                     let mut input_map: HashMap<&str, &str> = HashMap::new();
                     variable::read_inputs(&lines, &mut input_map).unwrap();
                     args.filter.iter().all(|f| {
@@ -112,18 +114,28 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
         } else {
             lst.iter()
                 .filter(|fnm| {
-                    let lines =
-                        variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, &fnm))
-                            .unwrap();
+                    let lines = variable::input_lines(
+                        &anek_dir.get_file(&AnekDirectoryType::Batch, &fnm),
+                        None,
+                    )
+                    .unwrap();
                     args.filter
                         .iter()
-                        .all(|f| lines.iter().any(|(_, l)| l.contains(f.as_str())))
+                        .all(|f| lines.iter().any(|(_, l)| l == f))
                 })
                 .map(|s| s.to_string())
                 .collect()
         }
     } else if args.loops {
-        variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Loops))?
+        let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Loops))?;
+        if args.filter.is_empty() {
+            lst
+        } else {
+            lst.iter()
+                .filter(|name| args.filter.iter().all(|f| name.contains(f)))
+                .map(|s| s.to_string())
+                .collect()
+        }
     } else if args.command {
         let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Commands))?;
         if args.filter.is_empty() {
@@ -151,17 +163,30 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                 .filter(|fnm| {
                     let lines = variable::input_lines(
                         &anek_dir.get_file(&AnekDirectoryType::Pipelines, &fnm),
+                        None,
                     )
                     .unwrap();
                     args.filter
                         .iter()
-                        .all(|f| lines.iter().any(|(_, l)| l.contains(f.as_str())))
+                        .all(|f| lines.iter().any(|(_, l)| l == f))
                 })
                 .map(|s| s.to_string())
                 .collect()
         }
     } else {
-        variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::History))?
+        let all_dirs = anekdirtype_iter()
+            .map(|adt| variable::list_filenames(&anek_dir.get_directory(adt)))
+            .collect::<Result<Vec<Vec<String>>, String>>()?;
+        anekdirtype_iter()
+            .zip(all_dirs)
+            .map(|(adt, fnames)| {
+                fnames
+                    .iter()
+                    .map(|f| format!("{}/{}", adt.dir_name(), f))
+                    .collect::<Vec<String>>()
+            })
+            .flatten()
+            .collect()
     };
     for p in paths {
         match p.rsplit_once("/") {

@@ -11,11 +11,12 @@ mod run;
 mod variable;
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(name = "anek", author, about, version)]
 struct Cli {
     /// No other outputs
     ///
-    /// Don't print the Time taken part.
+    /// Don't print the Time taken part. Not applicable for subcommand
+    /// outputs.
     #[arg(short, long)]
     quiet: bool,
     /// Command to run
@@ -59,14 +60,15 @@ enum Action {
     /// ~EDITOR~. You shouldn't specify the full path, but relative
     /// path from inside ~.anek~.
     ///
-    /// All the valid paths can be listed using ~anek list
-    /// -a~. Completion will help you there by proving them.
+    /// All the valid paths can be listed using ~anek list~.
+    /// Completion will help you there by proving them.
     Edit(edit::CliArgs),
     /// run the file
     ///
     /// Main command to run/print the commands or pipelines.
     Run(run::CliArgs),
-    /// Print completions
+    /// Print completions for different shells. If you use bash, use
+    /// the edited one included in the repo.
     Completions(completions::CliArgs),
 }
 

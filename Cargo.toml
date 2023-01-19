@@ -2,8 +2,8 @@
 name = "anek"
 version = "0.2.0"
 edition = "2021"
-author = "Gaurav Atreya"
-about = "simple tool to run command templates"
+authors = ["Gaurav Atreya"]
+description = "simple tool to run command templates"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

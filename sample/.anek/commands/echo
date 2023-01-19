@@ -1,3 +1,0 @@
-# is comment supported?
-# test it
-printf "filename='{filename}'\ndist_name='{title}'\nμ_input={mean}\nσ_input={sd}\nxmin={xmin}\nxmax={xmax}\nxdiff={xtics}\n"

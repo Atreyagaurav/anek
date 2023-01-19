@@ -8,7 +8,6 @@ pub enum AnekDirectoryType {
     Pipelines,
     Loops,
     Batch,
-    History,
 }
 
 impl AnekDirectoryType {
@@ -20,7 +19,6 @@ impl AnekDirectoryType {
             AnekDirectoryType::Pipelines => "pipelines",
             AnekDirectoryType::Loops => "loops",
             AnekDirectoryType::Batch => "batch",
-            AnekDirectoryType::History => "history",
         }
     }
 }
@@ -57,7 +55,6 @@ pub fn anekdirtype_iter() -> Iter<'static, AnekDirectoryType> {
         AnekDirectoryType::Pipelines,
         AnekDirectoryType::Loops,
         AnekDirectoryType::Batch,
-        AnekDirectoryType::History,
     ]
     .iter()
 }

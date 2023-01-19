@@ -111,7 +111,7 @@ pub fn exec_on_inputfile(
     let mut input_map: HashMap<&str, &str> = HashMap::new();
     let lines = files
         .iter()
-        .map(|file| variable::input_lines(&file))
+        .map(|file| variable::input_lines(&file, None))
         .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
     lines
         .iter()
@@ -172,20 +172,23 @@ pub fn exec_pipeline(
 pub fn run_command(args: CliArgs) -> Result<(), String> {
     let anek_dir = AnekDirectory::from(&args.path);
     let pipeline_templates = if let Some(pipeline) = args.pipeline {
-        variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Pipelines, &pipeline))?
-            .iter()
-            .map(
-                |(_, command)| -> Result<(String, String, Template), String> {
-                    match variable::read_file_full(
-                        &anek_dir.get_file(&AnekDirectoryType::Commands, &command),
-                    ) {
-                        Ok(s) => Ok((command.clone(), s.clone(), Template::new(s.trim()))),
-                        Err(e) => Err(e.to_string()),
-                    }
-                },
-            )
-            .collect::<Result<Vec<(String, String, Template)>, String>>()
-            .unwrap()
+        variable::input_lines(
+            &anek_dir.get_file(&AnekDirectoryType::Pipelines, &pipeline),
+            None,
+        )?
+        .iter()
+        .map(
+            |(_, command)| -> Result<(String, String, Template), String> {
+                match variable::read_file_full(
+                    &anek_dir.get_file(&AnekDirectoryType::Commands, &command),
+                ) {
+                    Ok(s) => Ok((command.clone(), s.clone(), Template::new(s.trim()))),
+                    Err(e) => Err(e.to_string()),
+                }
+            },
+        )
+        .collect::<Result<Vec<(String, String, Template)>, String>>()
+        .unwrap()
     } else if let Some(command) = args.command {
         let command_content =
             variable::read_file_full(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))?;
@@ -229,11 +232,20 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             args.pipable,
         )?;
     } else if let Some(batch) = args.batch {
-        let batch_lines =
-            variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, &batch))?;
+        let batch_lines = variable::input_lines(
+            &anek_dir.get_file(&AnekDirectoryType::Batch, &batch),
+            Some(1),
+        )?;
+        let total = batch_lines.len();
         for (i, line) in batch_lines {
             if !args.pipable {
-                println!("{} [{}]: {}", "Job".bright_purple().bold(), i, line);
+                println!(
+                    "{} [{} of {}]: {}",
+                    "Job".bright_purple().bold(),
+                    i,
+                    total,
+                    line
+                );
             }
             exec_pipeline_on_inputfile(
                 &pipeline_templates,
@@ -266,12 +278,18 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .multi_cartesian_product();
 
         let mut loop_index = 1; // extra variables for loop template
+        let loop_total = permutations.clone().count();
         for inputs in permutations {
             let loop_index_str = loop_index.to_string();
             let mut input_map: HashMap<&str, &str> = HashMap::new();
             input_map.insert("loop_index", &loop_index_str);
             if !args.pipable {
-                print!("{} [{}]: ", "Input".bright_magenta().bold(), loop_index);
+                print!(
+                    "{} [{} of {}]: ",
+                    "Input".bright_magenta().bold(),
+                    loop_index,
+                    loop_total
+                );
             }
             for (var, i, val) in &inputs {
                 input_map.insert(&var, &val);

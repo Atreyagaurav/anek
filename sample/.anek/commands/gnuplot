@@ -1,1 +1,0 @@
-gnuplot -p -e "dist_name='{title}';μ_input={mean};σ_input={sd};xmin={xmin};xmax={xmax};xdiff={xtics}" normal-dist.gp

@@ -30,7 +30,10 @@ pub struct CliArgs {
     path: PathBuf,
 }
 
-pub fn input_lines(filename: &PathBuf) -> Result<Vec<(usize, String)>, String> {
+pub fn input_lines(
+    filename: &PathBuf,
+    renumber: Option<usize>,
+) -> Result<Vec<(usize, String)>, String> {
     let file = match File::open(&filename) {
         Ok(f) => f,
         Err(e) => {
@@ -41,11 +44,20 @@ pub fn input_lines(filename: &PathBuf) -> Result<Vec<(usize, String)>, String> {
         }
     };
     let reader_lines = BufReader::new(file).lines();
-    let lines = reader_lines
-        .enumerate()
-        .map(|(i, l)| (i + 1, l.unwrap()))
-        .filter(|(_, l)| l.trim() != "" && !l.trim().starts_with("#"))
-        .collect();
+    let lines = if let Some(num) = renumber {
+        reader_lines
+            .map(|l| l.unwrap().trim().to_string())
+            .filter(|l| l != "" && !l.starts_with("#"))
+            .enumerate()
+            .map(|(i, l)| (i + num, l))
+            .collect()
+    } else {
+        reader_lines
+            .enumerate()
+            .map(|(i, l)| (i + 1, l.unwrap().trim().to_string()))
+            .filter(|(_, l)| l != "" && !l.starts_with("#"))
+            .collect()
+    };
     Ok(lines)
 }
 
@@ -85,7 +97,7 @@ pub fn read_inputs<'a>(
 }
 
 pub fn read_file_full(path: &PathBuf) -> Result<String, String> {
-    let lines = input_lines(&path)?;
+    let lines = input_lines(&path, None)?;
     let content = lines
         .iter()
         .map(|(_, line)| line.to_string())
@@ -141,15 +153,14 @@ pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>
     let mut input_values: Vec<Vec<(String, usize, String)>> = Vec::new();
     for file in input_files {
         let filename = file.file_name().unwrap().to_str().unwrap().to_string();
-        let lines = input_lines(&file)?;
+        let lines = input_lines(&file, Some(1))?;
         if lines.len() == 0 {
             continue;
         }
         input_values.push(
             lines
                 .iter()
-                .enumerate()
-                .map(|(i, l)| (filename.clone(), i, l.1.clone()))
+                .map(|(i, l)| (filename.clone(), *i, l.clone()))
                 .collect(),
         );
     }
@@ -186,7 +197,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         let mut vars: HashSet<&str> = HashSet::new();
         let lines = files
             .iter()
-            .map(|file| input_lines(&file))
+            .map(|file| input_lines(&file, None))
             .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
         lines
             .iter()
@@ -195,7 +206,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         for var in vars {
             let var_file = anek_dir.get_file(&AnekDirectoryType::Variables, &var);
             if !var_file.exists() {
-                println!("{}: {}", "New Input".red().bold(), var);
+                println!("{}: {}", "New".red().bold(), var);
                 File::create(var_file).map_err(|e| e.to_string())?;
             } else if !var_file.is_file() {
                 return Err(format!("{:?} is not a file", var_file));

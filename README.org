@@ -39,8 +39,10 @@ anek variable -s
 #+end_src
 
 ** list
-List available things like favorites, batches, commands, pipelines etc. It is mostly used for generating autocomplete. But users can also use it to list the available options for them.
+List available things like inputs, batches, commands, pipelines etc. It is mostly used for generating autocomplete. But users can also use it to list the available options for them. You can also filter the list. For example, filtering the commands based on a variable being used in the command.
 
+For example in our sample directory: =anek list -i= will give us =sample1 sample2 sample3= but =anek list -i -F skew= will give us just =sample3=. It also works with commands.
+ 
 ** edit
 Edit or view files inside ~.anek~. It basically just calls your editor, so consider this a shortcut for calling your ~EDITOR~. You shouldn't specify the full path, but relative path from inside ~.anek~.
 
@@ -48,7 +50,7 @@ All the valid paths can be listed using ~anek list -a~. Completion will help you
 
 Example:
 #+begin_src  bash
-anek edit inputs/name
+anek edit inputs/sample1
 #+end_src
 
 ** run
