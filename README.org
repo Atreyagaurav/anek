@@ -10,6 +10,45 @@ As this is a program made to run different inputs for commands, please keep the 
 
 [[./images/video-thumb.png]]
 
+** Simple Demo
+
+So make a directory, and get inside it,
+#+begin_src  bash
+mkdir testdir
+cd testdir
+#+end_src
+
+Now make anek directory,
+#+begin_src  bash
+anek new
+#+end_src
+
+Then make a input file with your name and age:
+
+#+begin_src  bash
+echo "name=John Doe" > .anek/inputs/person1
+echo "age=35" >> .anek/inputs/person1
+#+end_src
+
+Now make a command that prints out the name and age:
+
+#+begin_src  bash
+echo 'echo "My name is {name}, I am {age}."' > .anek/commands/intro
+#+end_src
+
+Now run the command with your input:
+#+begin_src  bash
+anek run --command intro --input person1
+#+end_src
+
+#+RESULTS:
+: Command (intro): echo "My name is John Doe, I am 35."
+: My name is John Doe, I am 35.
+
+The first line shows the rendered command, and then it's run (which prints the second line here).
+
+That's about it, you can use it for any commands, and you can have multiple input files, you can process them in batch, loop it, and everything.
+
 * Installation
 Use cargo to compile the program, and then copy that binary to your path.
 #+begin_src  bash
