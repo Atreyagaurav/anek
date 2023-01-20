@@ -1,3 +1,4 @@
+use chrono::Local;
 use clap::{CommandFactory, Parser, Subcommand};
 use colored::Colorize;
 use std::time::Instant;
@@ -7,6 +8,7 @@ mod dtypes;
 mod edit;
 mod list;
 mod new;
+mod report;
 mod run;
 mod variable;
 
@@ -67,14 +69,25 @@ enum Action {
     ///
     /// Main command to run/print the commands or pipelines.
     Run(run::CliArgs),
-    /// Print completions for different shells. If you use bash, use
-    /// the edited one included in the repo.
+    /// Print completions for different shells.
+    ///
+    /// If you use bash, use the edited one included in the repo.
     Completions(completions::CliArgs),
+    /// Generate a markdown with anek configurations
+    ///
+    /// This one will generate a markdown with details on what
+    /// configuration files there are, which variables they use, what
+    /// input values they have and such. It's just a compilation of
+    /// the .anek files with their contents, so that it'll be some
+    /// sort of documentation for people without anek program, or just
+    /// for you to look at, instead of having to browse the files.
+    Report(report::CliArgs),
 }
 
 fn main() {
     let args = Cli::parse();
 
+    let start_time = Local::now().format("%Y-%m-%d %H:%M:%S");
     let start = Instant::now();
     let action_result = match args.action {
         Action::New(args) => new::new_config(args),
@@ -86,6 +99,7 @@ fn main() {
             let mut clap_app = Cli::command();
             completions::print_completions(args, &mut clap_app)
         }
+        Action::Report(args) => report::save_report(args),
     };
     let duration = start.elapsed();
 
@@ -95,5 +109,6 @@ fn main() {
     if let Err(e) = action_result {
         eprintln!("{}: {}", "Error".bright_red(), e);
     }
-    eprintln!("{}: {:?}", "Time Elapsed".bright_blue().bold(), duration);
+    eprintln!("{:12}: {}", "Started at".bright_blue().bold(), start_time);
+    eprintln!("{:12}: {:?}", "Time Elapsed".bright_blue().bold(), duration);
 }
