@@ -301,7 +301,7 @@ _anek() {
             return 0
             ;;
         anek__run)
-            opts="-c -C -p -b -l -i -P -d -o -h --command --command-template --pipeline --batch --loop --input --pipable --demo --overwrite --help [PATH]"
+            opts="-c -C -p -r -R -b -l -i -P -d -o -h --command --command-template --pipeline --render --render-template --batch --loop --input --pipable --demo --overwrite --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -329,6 +329,22 @@ _anek() {
                     ;;
                 -p)
                     COMPREPLY=($(compgen -W "$(anek -q list -p)" -- "${cur}"))
+                    return 0
+                    ;;
+                --render)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -r)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --render-template)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -R)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 --batch)

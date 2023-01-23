@@ -37,9 +37,19 @@ pub struct CliArgs {
     pipeline: Option<String>,
     /// Render the given file like command templates
     ///
-    /// Renders a file.
+    /// Renders a file. Just write the file anywhere in your path with
+    /// templates for input variables in the same way you write
+    /// command templates. It's useful for markdown files, as the
+    /// curly braces syntax won't be used for anything else that
+    /// way. Do be careful about that. And the program will replace
+    /// those templates with their values when you run it with inputs.
     #[arg(short, long, group="action", value_hint = ValueHint::FilePath)]
     render: Option<PathBuf>,
+    /// Render the given template like command templates
+    ///
+    /// Renders a template. Same as render but you pass template instead of file.
+    #[arg(short='R', long, group="action", value_hint = ValueHint::Other)]
+    render_template: Option<String>,
     /// Run from batch
     ///
     /// Batch file are list of input files that are run one after
@@ -200,6 +210,8 @@ pub fn exec_pipeline(
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
     let anek_dir = AnekDirectory::from(&args.path);
+    let pipable = args.pipable || args.render.is_some() || args.render_template.is_some();
+
     let pipeline_templates = if let Some(pipeline) = args.pipeline {
         variable::input_lines(
             &anek_dir.get_file(&AnekDirectoryType::Pipelines, &pipeline),
@@ -232,6 +244,12 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             "-R-".to_string(),
             file_content.clone(),
             Template::new(file_content.trim()),
+        )]
+    } else if let Some(ref template) = args.render_template {
+        vec![(
+            "-R-".to_string(),
+            template.clone(),
+            Template::new(template.trim()),
         )]
     } else
     // same as: if let Some(template) = args.command_template Since
@@ -269,7 +287,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             &args.path,
             &overwrite,
             args.demo,
-            args.pipable || args.render.is_some(),
+            pipable,
         )?;
     } else if let Some(batch) = args.batch {
         let batch_lines = variable::input_lines(
@@ -293,7 +311,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 &args.path,
                 &overwrite,
                 args.demo,
-                args.pipable || args.render.is_some(),
+                pipable,
             )?;
         }
     } else if let Some(loop_name) = args.r#loop {
@@ -347,7 +365,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 &args.path,
                 &input_map,
                 args.demo,
-                args.pipable || args.render.is_some(),
+                pipable,
             )?;
             loop_index += 1;
         }
@@ -357,7 +375,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             &args.path,
             &overwrite,
             args.demo,
-            args.pipable || args.render.is_some(),
+            pipable,
         )?;
     }
     Ok(())
