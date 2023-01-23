@@ -3,6 +3,7 @@ use colored::Colorize;
 use itertools::Itertools;
 use new_string_template::template::Template;
 use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
 use subprocess::Exec;
 
@@ -34,6 +35,11 @@ pub struct CliArgs {
     /// .anek/commands/, use `anek list -c` for possible commands.
     #[arg(short, long, group="action", value_hint = ValueHint::Other)]
     pipeline: Option<String>,
+    /// Render the given file like command templates
+    ///
+    /// Renders a file.
+    #[arg(short, long, group="action", value_hint = ValueHint::FilePath)]
+    render: Option<PathBuf>,
     /// Run from batch
     ///
     /// Batch file are list of input files that are run one after
@@ -137,9 +143,12 @@ pub fn exec_on_inputfile(
         Err(e) => return Err(e.to_string()),
     };
     if !pipable {
-        print!("{} ({}): ", "Command".bright_green(), name);
+        eprint!("{} ({}): ", "Command".bright_green(), name);
     }
     println!("{}", command.trim());
+    if !pipable {
+        eprintln!("⇒");
+    }
     if !(demo || pipable) {
         Exec::shell(command).cwd(&wd).join().unwrap();
     }
@@ -173,9 +182,12 @@ pub fn exec_pipeline(
             Err(e) => return Err(e.to_string()),
         };
         if !pipable {
-            print!("{} ({}): ", "Command".bright_green(), name);
+            eprint!("{} ({}): ", "Command".bright_green(), name);
         }
         println!("{}", cmd);
+        if !pipable {
+            eprintln!("⇒");
+        }
         if !(demo || pipable) {
             Exec::shell(cmd)
                 .cwd(&wd)
@@ -196,9 +208,8 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         .iter()
         .map(
             |(_, command)| -> Result<(String, String, Template), String> {
-                match variable::read_file_full(
-                    &anek_dir.get_file(&AnekDirectoryType::Commands, &command),
-                ) {
+                match fs::read_to_string(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))
+                {
                     Ok(s) => Ok((command.clone(), s.clone(), Template::new(s.trim()))),
                     Err(e) => Err(e.to_string()),
                 }
@@ -208,19 +219,27 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         .unwrap()
     } else if let Some(command) = args.command {
         let command_content =
-            variable::read_file_full(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))?;
+            fs::read_to_string(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))
+                .map_err(|e| e.to_string())?;
         vec![(
             command,
             command_content.clone(),
             Template::new(command_content.trim()),
         )]
+    } else if let Some(ref filename) = args.render {
+        let file_content = fs::read_to_string(&filename).map_err(|e| e.to_string())?;
+        vec![(
+            "-R-".to_string(),
+            file_content.clone(),
+            Template::new(file_content.trim()),
+        )]
     } else
     // same as: if let Some(template) = args.command_template Since
-    // these 3 are in a group and there must be one of them, inforced
+    // these 4 are in a group and there must be one of them, inforced
     // by the argument parser
     {
         let template = args.command_template.unwrap();
-        vec![("--".to_string(), template.clone(), Template::new(template))]
+        vec![("-T-".to_string(), template.clone(), Template::new(template))]
     };
 
     let mut overwrite: HashMap<&str, &str> = HashMap::new();
@@ -250,7 +269,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             &args.path,
             &overwrite,
             args.demo,
-            args.pipable,
+            args.pipable || args.render.is_some(),
         )?;
     } else if let Some(batch) = args.batch {
         let batch_lines = variable::input_lines(
@@ -260,7 +279,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         let total = batch_lines.len();
         for (i, line) in batch_lines {
             if !args.pipable {
-                println!(
+                eprintln!(
                     "{} [{} of {}]: {}",
                     "Job".bright_purple().bold(),
                     i,
@@ -274,7 +293,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 &args.path,
                 &overwrite,
                 args.demo,
-                args.pipable,
+                args.pipable || args.render.is_some(),
             )?;
         }
     } else if let Some(loop_name) = args.r#loop {
@@ -306,7 +325,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             let mut input_map: HashMap<&str, &str> = HashMap::new();
             input_map.insert("LOOP_INDEX", &loop_index_str);
             if !args.pipable {
-                print!(
+                eprint!(
                     "{} [{} of {}]: ",
                     "Input".bright_magenta().bold(),
                     loop_index,
@@ -316,11 +335,11 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             for (var, i, val) in &inputs {
                 input_map.insert(&var, &val);
                 if !args.pipable {
-                    print!("{} [{}]={}; ", &var, i, &val);
+                    eprint!("{} [{}]={}; ", &var, i, &val);
                 }
             }
             if !args.pipable {
-                println!("");
+                eprintln!("");
             }
 
             exec_pipeline(
@@ -328,7 +347,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 &args.path,
                 &input_map,
                 args.demo,
-                args.pipable,
+                args.pipable || args.render.is_some(),
             )?;
             loop_index += 1;
         }
@@ -338,7 +357,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             &args.path,
             &overwrite,
             args.demo,
-            args.pipable,
+            args.pipable || args.render.is_some(),
         )?;
     }
     Ok(())

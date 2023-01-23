@@ -124,16 +124,6 @@ pub fn read_inputs<'a>(
     Ok(())
 }
 
-pub fn read_file_full(path: &PathBuf) -> Result<String, String> {
-    let lines = input_lines(&path, None)?;
-    let content = lines
-        .iter()
-        .map(|(_, line)| line.to_string())
-        .collect::<Vec<String>>()
-        .join("\n");
-    return Ok(content);
-}
-
 pub fn list_files_sorted(filename: &PathBuf) -> Result<std::vec::IntoIter<PathBuf>, String> {
     let files = match read_dir(&filename) {
         Ok(l) => l,

@@ -25,7 +25,7 @@ fn capitalize(s: &str) -> String {
 
 pub fn generate_report(anekdir: AnekDirectory) -> Result<String, String> {
     let mut report = String::new();
-    report.push_str("Anek Configuration File\n\n");
+    report.push_str("[Anek Configuration](https://github.com/Atreyagaurav/anek) File\n\n");
     report.push_str(&format!(
         "Generated at: {}\n\n",
         Local::now().format("%Y-%m-%d %H:%M:%S")
@@ -37,6 +37,7 @@ pub fn generate_report(anekdir: AnekDirectory) -> Result<String, String> {
         let dirname = capitalize(adt.dir_name());
         toc.push_str(&format!("{}. {}\n", i + 1, &dirname));
         contents.push_str(&format!("\n# {}\n", dirname));
+        contents.push_str(&format!("{}\n", adt.dir_description()));
 
         for (j, filename) in variable::list_filenames(&anekdir.get_directory(adt))?
             .iter()
