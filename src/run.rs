@@ -55,9 +55,10 @@ pub struct CliArgs {
     /// Batch file are list of input files that are run one after
     /// another on the same command template. The list of input files
     /// need to be relative to .anek/inputs/, run `anek list -i` for
-    /// possible input files.
-    #[arg(short, long, group="variables", value_hint = ValueHint::Other, conflicts_with="favorite")]
-    batch: Option<String>,
+    /// possible input files. If you provide more than a single batch
+    /// file, their inputs will be combined and run one after another.
+    #[arg(short, long, group="variables", value_delimiter=',', value_hint = ValueHint::Other)]
+    batch: Vec<String>,
     /// Run commands by looping for the inputs
     ///
     /// Loops though the values of the input variables in the loop
@@ -71,9 +72,12 @@ pub struct CliArgs {
     /// the tempalte and run it. You can specify a directory, and
     /// it'll use all the files inside to fill the template, in this
     /// case duplicate variable names will have only the last read
-    /// value (alphabetically, then outside to inside recursively)
-    #[arg(short, long, group="variables", value_hint = ValueHint::Other)]
-    input: Option<String>,
+    /// value (alphabetically, then outside to inside recursively). If
+    /// you give multiple input files then it'll read them in order,
+    /// if they're directory then each directory will be read in the
+    /// aforementioned way.
+    #[arg(short, long, group="variables", value_delimiter=',', value_hint = ValueHint::Other)]
+    input: Vec<String>,
     /// Print commands only so you can pipe it, assumes --demo
     ///
     /// This one will only print the commands without executing them
@@ -106,26 +110,30 @@ pub struct CliArgs {
 
 pub fn exec_on_inputfile(
     cmd: &Template,
-    filename: &PathBuf,
+    filenames: &Vec<PathBuf>,
     wd: &PathBuf,
     overwrite: &HashMap<&str, &str>,
     demo: bool,
     pipable: bool,
     name: &str,
 ) -> Result<(), String> {
-    let files = if filename.is_dir() {
-        variable::list_filenames(&filename)?
-            .iter()
-            .map(|f| filename.join(f))
-            .collect()
-    } else if filename.is_file() {
-        vec![filename.clone()]
-    } else {
-        return Err(format!(
-            "Path {:?} is neither a directory nor a file",
-            filename
-        ));
-    };
+    let mut files: Vec<PathBuf> = Vec::new();
+    for filename in filenames {
+        if filename.is_dir() {
+            files.extend(
+                variable::list_filenames(&filename)?
+                    .iter()
+                    .map(|f| filename.join(f)),
+            );
+        } else if filename.is_file() {
+            files.push(filename.clone());
+        } else {
+            return Err(format!(
+                "Path {:?} is neither a directory nor a file",
+                filename
+            ));
+        }
+    }
     let mut input_map: HashMap<&str, &str> = HashMap::new();
     let lines = files
         .iter()
@@ -167,7 +175,7 @@ pub fn exec_on_inputfile(
 
 pub fn exec_pipeline_on_inputfile(
     commands: &Vec<(String, String, Template)>,
-    input_file: &PathBuf,
+    input_file: &Vec<PathBuf>,
     wd: &PathBuf,
     overwrite: &HashMap<&str, &str>,
     demo: bool,
@@ -280,20 +288,26 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         }
     }
 
-    if let Some(input) = args.input {
+    if args.input.len() > 0 {
         exec_pipeline_on_inputfile(
             &pipeline_templates,
-            &anek_dir.get_file(&AnekDirectoryType::Inputs, &input),
+            &anek_dir.get_files(&AnekDirectoryType::Inputs, &args.input),
             &args.path,
             &overwrite,
             args.demo,
             pipable,
         )?;
-    } else if let Some(batch) = args.batch {
-        let batch_lines = variable::input_lines(
-            &anek_dir.get_file(&AnekDirectoryType::Batch, &batch),
-            Some(1),
-        )?;
+    } else if args.batch.len() > 0 {
+        let batch_lines: Vec<(usize, String)> = args
+            .batch
+            .iter()
+            .map(|b| variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, &b), None))
+            .flatten_ok()
+            .collect::<Result<Vec<(usize, String)>, String>>()?
+            .into_iter()
+            .enumerate()
+            .map(|(i, (_, s))| (i + 1, s))
+            .collect();
         let total = batch_lines.len();
         for (i, line) in batch_lines {
             if !args.pipable {
@@ -305,9 +319,10 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                     line
                 );
             }
+            let input_files: Vec<&str> = line.split(",").collect();
             exec_pipeline_on_inputfile(
                 &pipeline_templates,
-                &anek_dir.get_file(&AnekDirectoryType::Inputs, &line),
+                &anek_dir.get_files(&AnekDirectoryType::Inputs, &input_files),
                 &args.path,
                 &overwrite,
                 args.demo,

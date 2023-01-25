@@ -86,6 +86,17 @@ impl AnekDirectory {
     pub fn get_file(&self, dirtype: &AnekDirectoryType, filename: &str) -> PathBuf {
         self.get_directory(dirtype).join(&filename)
     }
+
+    pub fn get_files<T: ToString>(
+        &self,
+        dirtype: &AnekDirectoryType,
+        filenames: &Vec<T>,
+    ) -> Vec<PathBuf> {
+        filenames
+            .iter()
+            .map(|f| self.get_file(&dirtype, &f.to_string()))
+            .collect()
+    }
 }
 
 pub fn anekdirtype_iter() -> Iter<'static, AnekDirectoryType> {
