@@ -1,6 +1,8 @@
 use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
+use lazy_static::lazy_static;
+use new_string_template::template::Template;
 use regex::Regex;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_dir, File};
@@ -89,16 +91,58 @@ pub fn read_inputs_set<'a>(
     Ok(())
 }
 
+pub fn render_template(
+    templ: &Template,
+    input_map: &HashMap<&str, &str>,
+) -> Result<String, String> {
+    let rend = match templ.render(&input_map) {
+        Ok(c) => c,
+        Err(_) => {
+            let template_str: String = templ.render_nofail(&input_map);
+            lazy_static! {
+                static ref CMD_RE: Regex = Regex::new(r"\{((?:\w+[|]?)+)\}").unwrap();
+            }
+            let mut new_map = input_map.clone();
+            for cap in CMD_RE.captures_iter(&template_str) {
+                let cg = cap.get(1).unwrap();
+                let cap_slice = &template_str[cg.start()..cg.end()];
+                for csg in cap_slice.split("|") {
+                    // replace the template with | with first valid
+                    // value
+                    if let Some(val) = input_map.get(csg) {
+                        new_map.insert(cap_slice, val);
+                        break;
+                    }
+                }
+                if !new_map.contains_key(cap_slice) && cap_slice.ends_with("|") {
+                    // ending template with | means render it empty if
+                    // none of the variables are found
+                    new_map.insert(cap_slice, "");
+                }
+            }
+            match templ.render(&new_map) {
+                Ok(c) => c,
+                Err(e) => return Err(e.to_string()),
+            }
+        }
+    };
+    Ok(rend)
+}
+
 pub fn read_inputs_set_from_commands<'a>(
     enum_lines: &'a Vec<(usize, String)>,
     input_map: &mut HashSet<&'a str>,
-    cmd_re: &regex::Regex,
-    cmd_re_n: usize,
 ) -> Result<(), String> {
+    lazy_static! {
+        static ref CMD_RE: Regex = Regex::new(r"\{((?:\w+[|]?)+)\}").unwrap();
+    }
     for (_, line) in enum_lines {
-        for cap in cmd_re.captures_iter(line) {
-            let cg = cap.get(cmd_re_n).unwrap();
-            input_map.insert(&line[cg.start()..cg.end()]);
+        for cap in CMD_RE.captures_iter(line) {
+            let cg = cap.get(1).unwrap();
+            let cap_slice = &line[cg.start()..cg.end()];
+            cap_slice.split("|").for_each(|cg| {
+                input_map.insert(cg);
+            })
         }
     }
     Ok(())
@@ -177,8 +221,8 @@ pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>
         }
         input_values.push(
             lines
-                .iter()
-                .map(|(i, l)| (filename.clone(), *i, l.clone()))
+                .into_iter()
+                .map(|(i, l)| (filename.clone(), i, l))
                 .collect(),
         );
     }
@@ -225,7 +269,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .map(|lns| read_inputs_set(lns, &mut vars))
             .collect::<Result<(), String>>()?;
     }
-    let cmd_re = Regex::new(r"\{(\w+)\}").unwrap();
+
     if args.scan_commands {
         let files =
             list_files_sorted_recursive(&anek_dir.get_directory(&AnekDirectoryType::Commands))?;
@@ -235,7 +279,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
         cmd_lines
             .iter()
-            .map(|lines| read_inputs_set_from_commands(lines, &mut vars, &cmd_re, 1))
+            .map(|lines| read_inputs_set_from_commands(lines, &mut vars))
             .collect::<Result<(), String>>()?;
     }
     for var in vars {

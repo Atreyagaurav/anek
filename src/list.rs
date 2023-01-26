@@ -1,6 +1,9 @@
 use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
 use crate::dtypes::AnekDirectoryType;
 use crate::{
@@ -143,13 +146,18 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
         } else {
             lst.iter()
                 .filter(|fnm| {
-                    let cmd_content = std::fs::read_to_string(
+                    let cmd_content = variable::input_lines(
                         &anek_dir.get_file(&AnekDirectoryType::Commands, &fnm),
+                        None,
                     )
                     .unwrap();
+                    let mut cmd_variables: HashSet<&str> = HashSet::new();
+                    variable::read_inputs_set_from_commands(&cmd_content, &mut cmd_variables)
+                        .unwrap();
+
                     args.filter
                         .iter()
-                        .all(|f| cmd_content.contains(&format!("{{{}}}", f)))
+                        .all(|f| cmd_variables.contains(f.as_str()))
                 })
                 .map(|s| s.to_string())
                 .collect()

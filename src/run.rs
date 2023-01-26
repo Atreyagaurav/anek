@@ -147,8 +147,7 @@ pub fn exec_on_inputfile(
     let overwrite_meta: Vec<(&str, String)> = overwrite
         .iter()
         .map(|(k, v)| -> Result<(&str, String), String> {
-            Template::new(v.to_string())
-                .render(&input_map)
+            variable::render_template(&Template::new(v.to_string()), &input_map)
                 .and_then(|s| Ok((*k, s)))
                 .map_err(|e| e.to_string())
         })
@@ -156,10 +155,8 @@ pub fn exec_on_inputfile(
     for (k, v) in &overwrite_meta {
         input_map.insert(k, &v);
     }
-    let command = match cmd.render(&input_map) {
-        Ok(c) => c,
-        Err(e) => return Err(e.to_string()),
-    };
+
+    let command = variable::render_template(cmd, &input_map)?;
     if !pipable {
         eprint!("{} ({}): ", "Command".bright_green(), name);
     }
@@ -195,10 +192,7 @@ pub fn exec_pipeline(
     pipable: bool,
 ) -> Result<(), String> {
     for (name, _, command) in commands {
-        let cmd = match command.render(&inputs) {
-            Ok(c) => c,
-            Err(e) => return Err(e.to_string()),
-        };
+        let cmd = variable::render_template(command, &inputs)?;
         if !pipable {
             eprint!("{} ({}): ", "Command".bright_green(), name);
         }
@@ -269,6 +263,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     };
 
     let mut overwrite: HashMap<&str, &str> = HashMap::new();
+    overwrite.insert("", ""); // to replace {} as empty string.
     if args.overwrite.len() > 0 {
         for vars in &args.overwrite {
             let mut split_data = vars.split(":").map(|s| s.split("=")).flatten();
@@ -334,7 +329,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             variable::loop_inputs(&anek_dir.get_file(&AnekDirectoryType::Loops, &loop_name))?;
 
         let permutations = loop_inputs
-            .iter()
+            .into_iter()
             // filter only the inputs used in the command file
             .filter(|inps| {
                 pipeline_templates
