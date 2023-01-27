@@ -45,6 +45,8 @@ pub struct CliArgs {
     path: PathBuf,
 }
 
+pub static OPTIONAL_RENDER_CHAR: char = '?';
+
 pub fn input_lines(
     filename: &PathBuf,
     renumber: Option<usize>,
@@ -100,13 +102,20 @@ pub fn render_template(
         Err(_) => {
             let template_str: String = templ.render_nofail(&input_map);
             lazy_static! {
-                static ref CMD_RE: Regex = Regex::new(r"\{((?:\w+[|]?)+)\}").unwrap();
+                static ref CMD_RE: Regex = Regex::new(&format!(
+                    "{}{}{}",
+                    r"\{((?:\w+[",
+                    OPTIONAL_RENDER_CHAR.to_string(),
+                    r"]?)+)\}"
+                ))
+                .unwrap();
             }
             let mut new_map = input_map.clone();
+
             for cap in CMD_RE.captures_iter(&template_str) {
                 let cg = cap.get(1).unwrap();
                 let cap_slice = &template_str[cg.start()..cg.end()];
-                for csg in cap_slice.split("|") {
+                for csg in cap_slice.split(OPTIONAL_RENDER_CHAR) {
                     // replace the template with | with first valid
                     // value
                     if let Some(val) = input_map.get(csg) {
@@ -114,12 +123,13 @@ pub fn render_template(
                         break;
                     }
                 }
-                if !new_map.contains_key(cap_slice) && cap_slice.ends_with("|") {
+                if !new_map.contains_key(cap_slice) && cap_slice.ends_with(OPTIONAL_RENDER_CHAR) {
                     // ending template with | means render it empty if
                     // none of the variables are found
                     new_map.insert(cap_slice, "");
                 }
             }
+
             match templ.render(&new_map) {
                 Ok(c) => c,
                 Err(e) => return Err(e.to_string()),
