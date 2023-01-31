@@ -84,11 +84,11 @@ pub fn read_inputs_set<'a>(
     input_map: &mut HashSet<&'a str>,
 ) -> Result<(), String> {
     for (i, line) in enum_lines {
-        let mut split_data = line.split("=");
-        input_map.insert(match split_data.next() {
+        let split_data = match line.split_once("=") {
             Some(d) => d,
             None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
-        });
+        };
+        input_map.insert(split_data.0);
     }
     Ok(())
 }
@@ -163,17 +163,11 @@ pub fn read_inputs<'a>(
     input_map: &mut HashMap<&'a str, &'a str>,
 ) -> Result<(), String> {
     for (i, line) in enum_lines {
-        let mut split_data = line.split("=");
-        input_map.insert(
-            match split_data.next() {
-                Some(d) => d,
-                None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
-            },
-            match split_data.next() {
-                Some(d) => d,
-                None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
-            },
-        );
+        let split_data = match line.split_once("=") {
+            Some(d) => d,
+            None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
+        };
+        input_map.insert(split_data.0, split_data.1);
     }
     Ok(())
 }
