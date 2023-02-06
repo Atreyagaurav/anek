@@ -2,7 +2,8 @@ use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
 use new_string_template::template::Template;
-use std::collections::HashMap;
+use number_range::NumberRangeOptions;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use subprocess::Exec;
@@ -50,6 +51,14 @@ pub struct CliArgs {
     /// Renders a template. Same as render but you pass template instead of file.
     #[arg(short='R', long, group="action", value_hint = ValueHint::Other)]
     render_template: Option<String>,
+    /// Select subset to run, works in batch and loop only
+    ///
+    /// Since batch and loop are just a list of inputs to run, you can
+    /// select a subset of them to run. The selection string needs to
+    /// be comma separated values of possitive integers, you can have
+    /// range of values like: 1-5 to represent values from 1 to 5.
+    #[arg(short, long, value_hint = ValueHint::Other)]
+    select_inputs: Option<String>,
     /// Run from batch
     ///
     /// Batch file are list of input files that are run one after
@@ -213,6 +222,15 @@ pub fn exec_pipeline(
 pub fn run_command(args: CliArgs) -> Result<(), String> {
     let anek_dir = AnekDirectory::from(&args.path);
     let pipable = args.pipable || args.render.is_some() || args.render_template.is_some();
+    let filter_index: HashSet<usize> = if let Some(f) = args.select_inputs {
+        NumberRangeOptions::default()
+            .with_list_sep(',')
+            .with_range_sep('-')
+            .parse(&f)?
+            .collect()
+    } else {
+        HashSet::new()
+    };
 
     let pipeline_templates = if let Some(pipeline) = args.pipeline {
         variable::input_lines(
@@ -302,14 +320,24 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .into_iter()
             .enumerate()
             .map(|(i, (_, s))| (i + 1, s))
+            .filter(|f| {
+                if filter_index.len() == 0 {
+                    true
+                } else {
+                    filter_index.contains(&f.0)
+                }
+            })
             .collect();
+        let mut current = 0;
         let total = batch_lines.len();
         for (i, line) in batch_lines {
+            current += 1;
             if !args.pipable {
                 eprintln!(
-                    "{} [{} of {}]: {}",
+                    "{} {} [{} of {}]: {}",
                     "Job".bright_purple().bold(),
                     i,
+                    current,
                     total,
                     line
                 );
@@ -346,9 +374,14 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             })
             .multi_cartesian_product();
 
-        let mut loop_index = 1; // extra variable for loop template
         let loop_total = permutations.clone().count();
-        for inputs in permutations {
+
+        for (li, inputs) in permutations.enumerate() {
+            let loop_index = li + 1;
+
+            if filter_index.len() > 0 && !filter_index.contains(&loop_index) {
+                continue;
+            }
             let loop_index_str = loop_index.to_string();
             let mut input_map: HashMap<&str, &str> = HashMap::new();
             input_map.insert("LOOP_INDEX", &loop_index_str);
@@ -377,7 +410,6 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 args.demo,
                 pipable,
             )?;
-            loop_index += 1;
         }
     } else {
         exec_pipeline(

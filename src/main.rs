@@ -85,11 +85,11 @@ enum Action {
 }
 
 fn main() {
-    let args = Cli::parse();
+    let g_args = Cli::parse();
 
     let start_time = Local::now().format("%Y-%m-%d %H:%M:%S");
     let start = Instant::now();
-    let action_result = match args.action {
+    let action_result = match g_args.action {
         Action::New(args) => new::new_config(args),
         Action::Variable(args) => variable::run_command(args),
         Action::List(args) => list::list_options(args),
@@ -103,7 +103,7 @@ fn main() {
     };
     let duration = start.elapsed();
 
-    if args.quiet {
+    if g_args.quiet {
         return;
     }
     if let Err(e) = action_result {
