@@ -3,32 +3,38 @@ pkgname=anek
 pkgver=0.3.1
 pkgrel=1
 pkgdesc="Tool to run commands based on a templates"
-arch=("x86_64")
-url="https://github.com/Atreyagaurav/anek"
+arch=('x86_64')
+url="https://github.com/Atreyagaurav/${pkgname}"
 license=('GPL3')
-groups=()
-depends=()
-makedepends=('git' 'cargo')
-provides=("${pkgname}")
-conflicts=("${pkgname}")
-replaces=()
-backup=()
-options=()
-install=
-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/Atreyagaurav/anek/archive/refs/tags/v${pkgver}.tar.gz")
-noextract=()
+depends=('gcc-libs')
+makedepends=('rust' 'cargo' 'git')
+source=("git+https://github.com/Atreyagaurav/${pkgname}.git")
 md5sums=('SKIP')
 
+pkgver() {
+    cd "$srcdir/${pkgname}"
+    printf "%s" "$(git describe --tags --abbrev=0 | sed 's/\([^-]*-\)g/r\1/;s/-/./g')"
+}
+
+prepare() {
+    cd "$srcdir/${pkgname}"
+    git checkout "tags/$(git describe --tags --abbrev=0)"
+}
+
+
 build() {
-	echo "$srcdir/${pkgname}-${pkgver}"
-	cd "$srcdir/${pkgname}-${pkgver}"
-	make
+	cd "$srcdir/${pkgname}"
+	cargo build --release
 }
 
 package() {
-    cd "$srcdir/${pkgname}-${pkgver}"
+    cd "$srcdir/${pkgname}"
     mkdir -p "$pkgdir/usr/bin"
-    cp target/release/anek "$pkgdir/usr/bin/anek"
+    cp "target/release/${pkgname}" "$pkgdir/usr/bin/${pkgname}"
     mkdir -p "$pkgdir/usr/share/bash-completion/completions"
-    cp completions/bash-completions.sh "$pkgdir/usr/share/bash-completion/completions/anek"
+    cp completions/bash-completions.sh "$pkgdir/usr/share/bash-completion/completions/${pkgname}"
+    mkdir -p "$pkgdir/usr/share/fish/vendor_completions.d/"
+    "./target/release/${pkgname}" completions --fish > "$pkgdir/usr/share/fish/vendor_completions.d/${pkgname}.fish"
+    mkdir -p "$pkgdir/usr/share/zsh/site-functions/"
+    "./target/release/${pkgname}" completions --zsh > "$pkgdir/usr/share/zsh/site-functions/_${pkgname}"
 }
