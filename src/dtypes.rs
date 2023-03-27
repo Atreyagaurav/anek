@@ -1,5 +1,5 @@
 use core::slice::Iter;
-use std::path::PathBuf;
+use std::{fs::create_dir, path::PathBuf};
 
 pub enum AnekDirectoryType {
     Variables,
@@ -69,14 +69,43 @@ pub struct AnekDirectory {
 }
 
 impl AnekDirectory {
-    pub fn from(wd: &PathBuf) -> Self {
-        Self {
-            root: wd.join(".anek"),
+    pub fn from(wd: &PathBuf) -> Result<Self, String> {
+        let root = wd.join(".anek");
+        if root.exists() {
+            if root.is_dir() {
+                Ok(Self { root })
+            } else {
+                Err(format!("{:?} is not a directory", root))
+            }
+        } else {
+            let wd = wd.canonicalize().map_err(|e| e.to_string())?;
+            if let Some(p) = wd.parent() {
+                AnekDirectory::from(&p.to_path_buf())
+            } else {
+                Err("No .anek configuration in the current path".to_string())
+            }
         }
     }
 
-    pub fn exists(&self) -> bool {
-        self.root.exists() && self.root.is_dir()
+    pub fn new(wd: &PathBuf) -> Result<Self, String> {
+        let root = wd.join(".anek");
+        if root.exists() {
+            if root.is_dir() {
+                Err(format!("{:?} already has anek configuration", root))
+            } else {
+                Err(format!(
+                    "{:?} file exists, that is not anek configuration",
+                    root
+                ))
+            }
+        } else {
+            create_dir(&root).map_err(|e| e.to_string())?;
+            let anek = AnekDirectory::from(&wd)?;
+            for adt in anekdirtype_iter() {
+                create_dir(anek.get_directory(adt)).map_err(|e| e.to_string())?;
+            }
+            Ok(anek)
+        }
     }
 
     pub fn get_directory(&self, dirtype: &AnekDirectoryType) -> PathBuf {

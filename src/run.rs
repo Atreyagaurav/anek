@@ -220,7 +220,7 @@ pub fn exec_pipeline(
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
-    let anek_dir = AnekDirectory::from(&args.path);
+    let anek_dir = AnekDirectory::from(&args.path)?;
     let pipable = args.pipable || args.render.is_some() || args.render_template.is_some();
     let filter_index: HashSet<usize> = if let Some(f) = args.select_inputs {
         NumberRangeOptions::default()

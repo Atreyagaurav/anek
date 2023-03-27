@@ -256,7 +256,7 @@ fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), 
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
-    let anek_dir = AnekDirectory::from(&args.path);
+    let anek_dir = AnekDirectory::from(&args.path)?;
     let mut vars: HashSet<&str> = HashSet::new();
     let inp_lines: Vec<Vec<(usize, String)>>;
     let cmd_lines: Vec<Vec<(usize, String)>>;

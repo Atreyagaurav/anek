@@ -21,7 +21,7 @@ pub struct CliArgs {
 }
 
 pub fn edit_file(args: CliArgs) -> Result<(), String> {
-    let filepath = AnekDirectory::from(&args.path).root.join(args.anek_file);
+    let filepath = AnekDirectory::from(&args.path)?.root.join(args.anek_file);
     if args.echo {
         let contents = match std::fs::read_to_string(filepath) {
             Ok(c) => c,

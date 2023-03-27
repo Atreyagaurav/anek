@@ -60,7 +60,7 @@ pub fn generate_report(anekdir: AnekDirectory) -> Result<String, String> {
 }
 
 pub fn save_report(args: CliArgs) -> Result<(), String> {
-    let filepath = AnekDirectory::from(&args.path);
+    let filepath = AnekDirectory::from(&args.path)?;
     if !filepath.root.exists() {
         return Err(format!(
             "The path {:?} doesn't have anek configuration",

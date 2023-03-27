@@ -59,13 +59,7 @@ pub struct CliArgs {
 }
 
 pub fn list_options(args: CliArgs) -> Result<(), String> {
-    let anek_dir = AnekDirectory::from(&args.path);
-    if !anek_dir.exists() {
-        return Err(format!(
-            "Directory [{:?}] doesn't have .anek config.",
-            args.path
-        ));
-    }
+    let anek_dir = AnekDirectory::from(&args.path)?;
     let paths = if args.variables {
         let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Variables))?;
         if args.filter.is_empty() {
