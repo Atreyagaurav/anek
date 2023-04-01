@@ -6,6 +6,7 @@ use std::time::Instant;
 mod completions;
 mod dtypes;
 mod edit;
+mod export;
 mod list;
 mod new;
 mod report;

@@ -1,1 +1,2 @@
+echo "$PWD"
 echo 'mean={mean}'

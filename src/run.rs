@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use subprocess::Exec;
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
+use crate::export;
 use crate::variable;
 
 #[derive(Args)]
@@ -51,6 +52,12 @@ pub struct CliArgs {
     /// Renders a template. Same as render but you pass template instead of file.
     #[arg(short='R', long, group="action", value_hint = ValueHint::Other)]
     render_template: Option<String>,
+    /// Export the given variables
+    #[arg(short='e', long, group="action", value_hint = ValueHint::Other)]
+    export: Option<String>,
+    /// Export according to the format specified (csv,json,plain)
+    #[arg(short='E', long, default_value="csv", value_hint = ValueHint::Other)]
+    export_format: String,
     /// Select subset to run, works in batch and loop only
     ///
     /// Since batch and loop are just a list of inputs to run, you can
@@ -125,6 +132,7 @@ pub fn exec_on_inputfile(
     demo: bool,
     pipable: bool,
     name: &str,
+    print_extras: (&str, &str),
 ) -> Result<(), String> {
     let mut files: Vec<PathBuf> = Vec::new();
     for filename in filenames {
@@ -169,7 +177,7 @@ pub fn exec_on_inputfile(
     if !pipable {
         eprint!("{} ({}): ", "Command".bright_green(), name);
     }
-    println!("{}", command.trim());
+    println!("{}{}{}", print_extras.0, command.trim(), print_extras.1);
     if !pipable {
         eprintln!("⇒");
     }
@@ -186,9 +194,19 @@ pub fn exec_pipeline_on_inputfile(
     overwrite: &HashMap<&str, &str>,
     demo: bool,
     pipable: bool,
+    print_extras: (&str, &str),
 ) -> Result<(), String> {
     for (name, _, command) in commands {
-        exec_on_inputfile(&command, &input_file, &wd, &overwrite, demo, pipable, name)?;
+        exec_on_inputfile(
+            &command,
+            &input_file,
+            &wd,
+            &overwrite,
+            demo,
+            pipable,
+            name,
+            print_extras,
+        )?;
     }
     Ok(())
 }
@@ -199,13 +217,14 @@ pub fn exec_pipeline(
     inputs: &HashMap<&str, &str>,
     demo: bool,
     pipable: bool,
+    print_extras: (&str, &str),
 ) -> Result<(), String> {
     for (name, _, command) in commands {
         let cmd = variable::render_template(command, &inputs)?;
         if !pipable {
             eprint!("{} ({}): ", "Command".bright_green(), name);
         }
-        println!("{}", cmd);
+        println!("{}{}{}", print_extras.0, cmd, print_extras.1);
         if !pipable {
             eprintln!("⇒");
         }
@@ -221,7 +240,10 @@ pub fn exec_pipeline(
 
 pub fn run_command(args: CliArgs) -> Result<(), String> {
     let anek_dir = AnekDirectory::from(&args.path)?;
-    let pipable = args.pipable || args.render.is_some() || args.render_template.is_some();
+    let pipable = args.pipable
+        || args.render.is_some()
+        || args.render_template.is_some()
+        || args.export.is_some();
     let filter_index: HashSet<usize> = if let Some(f) = args.select_inputs {
         NumberRangeOptions::default()
             .with_list_sep(',')
@@ -271,6 +293,12 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             template.clone(),
             Template::new(template.trim()),
         )]
+    } else if let Some(ref template) = args.export {
+        vec![(
+            "-E-".to_string(),
+            template.clone(),
+            Template::new(export::body_template(template, &args.export_format)),
+        )]
     } else
     // same as: if let Some(template) = args.command_template Since
     // these 4 are in a group and there must be one of them, inforced
@@ -300,7 +328,13 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             }
         }
     }
-
+    let (print_pre, print_pre_line, print_post_line, print_connector, print_post) =
+        if let Some(ref template) = args.export {
+            export::pre_post_templates(&template, &args.export_format)
+        } else {
+            export::pre_post_templates("", "")
+        };
+    println!("{}", print_pre);
     if args.input.len() > 0 {
         exec_pipeline_on_inputfile(
             &pipeline_templates,
@@ -309,6 +343,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             &overwrite,
             args.demo,
             pipable,
+            (print_pre_line, print_post_line),
         )?;
     } else if args.batch.len() > 0 {
         let batch_lines: Vec<(usize, String)> = args
@@ -343,6 +378,11 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 );
             }
             let input_files: Vec<&str> = line.split(",").collect();
+            let post: String = if current < total {
+                format!("{}{}", print_post_line, print_connector)
+            } else {
+                print_post_line.to_string()
+            };
             exec_pipeline_on_inputfile(
                 &pipeline_templates,
                 &anek_dir.get_files(&AnekDirectoryType::Inputs, &input_files),
@@ -350,6 +390,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
                 &overwrite,
                 args.demo,
                 pipable,
+                (print_pre_line, &post),
             )?;
         }
     } else if let Some(loop_name) = args.r#loop {
@@ -402,13 +443,18 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             if !args.pipable {
                 eprintln!("");
             }
-
+            let post: String = if loop_index < loop_total {
+                format!("{}{}", print_post_line, print_connector)
+            } else {
+                print_post_line.to_string()
+            };
             exec_pipeline(
                 &pipeline_templates,
                 &args.path,
                 &input_map,
                 args.demo,
                 pipable,
+                (print_pre_line, &post),
             )?;
         }
     } else {
@@ -418,7 +464,9 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             &overwrite,
             args.demo,
             pipable,
+            (print_pre_line, print_post_line),
         )?;
     }
+    println!("{}", print_post);
     Ok(())
 }
