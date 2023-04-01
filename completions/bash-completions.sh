@@ -347,6 +347,30 @@ _anek() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                --export)
+                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
+                    return 0
+                    ;;
+                -e)
+                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
+                    return 0
+                    ;;
+                --export-format)
+                    COMPREPLY=($(compgen -W "csv json plain" -- "${cur}"))
+                    return 0
+                    ;;
+                -E)
+                    COMPREPLY=($(compgen -W "csv json plain" -- "${cur}"))
+                    return 0
+                    ;;
+                --select-inputs)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -s)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 --batch)
                     COMPREPLY=($(compgen -W "$(anek -q list -b)" -- "${cur}"))
                     return 0

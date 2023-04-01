@@ -53,8 +53,8 @@ pub struct CliArgs {
     #[arg(short='R', long, group="action", value_hint = ValueHint::Other)]
     render_template: Option<String>,
     /// Export the given variables
-    #[arg(short='e', long, group="action", value_hint = ValueHint::Other)]
-    export: Option<String>,
+    #[arg(short='e', long,  value_delimiter=',', group="action", value_hint = ValueHint::Other)]
+    export: Vec<String>,
     /// Export according to the format specified (csv,json,plain)
     #[arg(short='E', long, default_value="csv", value_hint = ValueHint::Other)]
     export_format: String,
@@ -243,7 +243,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     let pipable = args.pipable
         || args.render.is_some()
         || args.render_template.is_some()
-        || args.export.is_some();
+        || args.export.len() > 0;
     let filter_index: HashSet<usize> = if let Some(f) = args.select_inputs {
         NumberRangeOptions::default()
             .with_list_sep(',')
@@ -293,11 +293,11 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             template.clone(),
             Template::new(template.trim()),
         )]
-    } else if let Some(ref template) = args.export {
+    } else if args.export.len() > 0 {
         vec![(
             "-E-".to_string(),
-            template.clone(),
-            Template::new(export::body_template(template, &args.export_format)),
+            args.export_format.clone(),
+            Template::new(export::body_template(&args.export, &args.export_format)),
         )]
     } else
     // same as: if let Some(template) = args.command_template Since
@@ -329,10 +329,10 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         }
     }
     let (print_pre, print_pre_line, print_post_line, print_connector, print_post) =
-        if let Some(ref template) = args.export {
-            export::pre_post_templates(&template, &args.export_format)
+        if args.export.len() > 0 {
+            export::pre_post_templates(&args.export, &args.export_format)
         } else {
-            export::pre_post_templates("", "")
+            export::pre_post_templates(&vec![], "")
         };
     println!("{}", print_pre);
     if args.input.len() > 0 {
