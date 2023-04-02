@@ -101,7 +101,7 @@ anek edit inputs/sample1
 #+end_src
 
 ** run
-Main command to run/print the commands or pipelines.
+Main command to run/print the commands or pipelines. It can also be used to just render the template or to export the variables.
 
 To run something, you need a command, and if the command has some template variables then you need those input variable.
 *** Command
@@ -144,9 +144,24 @@ This is just a convinient feature to process multiple input files in a batch. if
 You can make a loop directory, inside it a file for each input you want. And the files should have the values for that variable. You need at least one value for all variable, anything more than that, then it'll be looped with one value at a time. You can have multiple input files with multiple values to have a different combinations of the inputs in the loop (2 values of input1 and 2 values of input2, will run it 4 times).
 
 *** Other options
-Other options are pipable and demo. Demo will only print the generated commands and not run it. Pipable will also print the commands but not anything else. So you can pipe those commands to other programs. For example you can pipe it to ~bash~ when you want to just run them without any other info, or you can pipe it to ~gnu parallel~ if you want to run those commands in parallel.
+Other options that are related to commands are pipable and demo. Demo will only print the generated commands and not run it. Pipable will also print the commands but not anything else. So you can pipe those commands to other programs. For example you can pipe it to ~bash~ when you want to just run them without any other info, or you can pipe it to ~gnu parallel~ if you want to run those commands in parallel.
 
 Since pipable doesn't run the commands, you can also use it to print/list out some of the inputs, and then pipe it to awk/files/grep or anything.
+
+*** Rendering only options
+These options are `-r`, `-R`, and `-e`. Look into help menu for more details.
+
+The inputs can be used in the same way to just render something or to export the rendering.
+
+They are useful when you just want to look at some variables, or to generate a report based on a template file. Or make csv or json of the variables for different inputs.
+
+If you want to export the whole set of variables you can generate that with some bash-fu.
+
+For example this command here will make a template with optional rendering of all the variables in the config, run it in a batch mode for all inputs and save it in a csv.
+#+begin_src bash
+anek run -e $(printf "%s?," `anek list -v`) -b all > /tmp/data.csv
+#+end_src
+
 
 ** completions
 Prints completion for shells. It's for internal use for now, though you can get completions for you from this.
