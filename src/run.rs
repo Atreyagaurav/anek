@@ -310,6 +310,8 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
 
     let mut overwrite: HashMap<&str, &str> = HashMap::new();
     overwrite.insert("", ""); // to replace {} as empty string.
+    overwrite.insert("{", "{"); // to replace {{} as {
+    overwrite.insert("}", "}"); // to replace {}} as }
     if args.overwrite.len() > 0 {
         for vars in &args.overwrite {
             let mut split_data = vars.split(":").map(|s| s.split("=")).flatten();

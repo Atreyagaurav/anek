@@ -150,7 +150,7 @@ pub fn read_inputs_set_from_commands<'a>(
         for cap in CMD_RE.captures_iter(line) {
             let cg = cap.get(1).unwrap();
             let cap_slice = &line[cg.start()..cg.end()];
-            cap_slice.split("|").for_each(|cg| {
+            cap_slice.split(OPTIONAL_RENDER_CHAR).for_each(|cg| {
                 input_map.insert(cg);
             })
         }
