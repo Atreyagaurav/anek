@@ -12,6 +12,7 @@ mod new;
 mod report;
 mod run;
 mod variable;
+mod view;
 
 #[derive(Parser)]
 #[command(name = "anek", author, about, version)]
@@ -83,6 +84,8 @@ enum Action {
     /// sort of documentation for people without anek program, or just
     /// for you to look at, instead of having to browse the files.
     Report(report::CliArgs),
+    /// Show the current Anek Directory
+    View(view::CliArgs),
 }
 
 fn main() {
@@ -101,6 +104,7 @@ fn main() {
             completions::print_completions(args, &mut clap_app)
         }
         Action::Report(args) => report::save_report(args),
+        Action::View(args) => view::cmd(args),
     };
     let duration = start.elapsed();
 
