@@ -306,6 +306,12 @@ fn update_from_stdin(file: &PathBuf) -> Result<(), String> {
     } else {
         return Err("File is not an anek file".into());
     };
+
+    for (k, v) in variables.iter() {
+        eprintln!("{}={}", k, v);
+    }
+    eprintln!("Waiting for input...");
+
     let mut input = String::new();
     let mut modified = false;
     loop {
