@@ -142,8 +142,25 @@ pub fn exec_on_inputfile(
                     .iter()
                     .map(|f| filename.join(f)),
             );
-        } else if filename.is_file() {
-            files.push(filename.clone());
+        } else if !filename.exists() || filename.is_file() {
+            let dot_d = filename.with_file_name(format!(
+                "{}.d",
+                filename.file_name().unwrap().to_string_lossy()
+            ));
+            if dot_d.exists() {
+                if dot_d.is_dir() {
+                    files.extend(
+                        variable::list_filenames(&dot_d)?
+                            .iter()
+                            .map(|f| dot_d.join(f)),
+                    );
+                } else if dot_d.is_file() {
+                    files.push(dot_d);
+                }
+            }
+            if filename.exists() {
+                files.push(filename.clone());
+            }
         } else {
             return Err(format!(
                 "Path {:?} is neither a directory nor a file",

@@ -54,14 +54,24 @@ pub struct CliArgs {
     /// containing the inputs in the file
     #[arg(short, long, group = "anek-type", action)]
     batch: bool,
+    /// All files
+    ///
+    /// Do not skip files inside .d directories
+    #[arg(short, long, action)]
+    all: bool,
     #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
     path: PathBuf,
 }
 
 pub fn list_options(args: CliArgs) -> Result<(), String> {
     let anek_dir = AnekDirectory::from(&args.path)?;
+    let list_func = if args.all {
+        variable::list_filenames
+    } else {
+        variable::list_anek_filenames
+    };
     let paths = if args.variables {
-        let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Variables))?;
+        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Variables))?;
         if args.filter.is_empty() {
             lst
         } else {
@@ -80,7 +90,7 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                 .collect()
         }
     } else if args.inputs {
-        let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Inputs))?;
+        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Inputs))?;
         if args.filter.is_empty() {
             lst
         } else {
@@ -105,7 +115,7 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                 .collect()
         }
     } else if args.batch {
-        let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Batch))?;
+        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Batch))?;
         if args.filter.is_empty() {
             lst
         } else {
@@ -124,7 +134,7 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                 .collect()
         }
     } else if args.loops {
-        let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Loops))?;
+        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Loops))?;
         if args.filter.is_empty() {
             lst
         } else {
@@ -134,7 +144,7 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                 .collect()
         }
     } else if args.command {
-        let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Commands))?;
+        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Commands))?;
         if args.filter.is_empty() {
             lst
         } else {
@@ -157,7 +167,7 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                 .collect()
         }
     } else if args.pipeline {
-        let lst = variable::list_filenames(&anek_dir.get_directory(&AnekDirectoryType::Pipelines))?;
+        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Pipelines))?;
         if args.filter.is_empty() {
             lst
         } else {
@@ -177,7 +187,7 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
         }
     } else {
         let all_dirs = anekdirtype_iter()
-            .map(|adt| variable::list_filenames(&anek_dir.get_directory(adt)))
+            .map(|adt| list_func(&anek_dir.get_directory(adt)))
             .collect::<Result<Vec<Vec<String>>, String>>()?;
         anekdirtype_iter()
             .zip(all_dirs)

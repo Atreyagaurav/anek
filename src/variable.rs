@@ -214,6 +214,39 @@ pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
     Ok(filenames)
 }
 
+pub fn list_anek_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
+    let dirpath_full = dirpath.to_str().unwrap();
+    let mut file_list: HashSet<PathBuf> = HashSet::new();
+    let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![dirpath.clone()]);
+
+    while !list_dir.is_empty() {
+        let file = list_dir.pop_front().unwrap();
+        if file.is_file() {
+            file_list.insert(file.clone());
+        } else if file.is_dir() {
+            if file.file_name().unwrap().to_string_lossy().ends_with(".d") {
+                file_list.insert(file.with_extension(""));
+            } else {
+                let files = list_files_sorted(&file)?;
+                list_dir.extend(files);
+            }
+        }
+    }
+    let filenames: Vec<String> = file_list
+        .into_iter()
+        .map(|file| {
+            let fullpath = file.to_str().unwrap().to_string();
+            let relpath = fullpath
+                .strip_prefix(dirpath_full)
+                .unwrap()
+                .trim_start_matches("/");
+            relpath.to_string()
+        })
+        .sorted()
+        .collect();
+    Ok(filenames)
+}
+
 pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>>, String> {
     let input_files = list_files_sorted(&dirname)?;
     let mut input_values: Vec<Vec<(String, usize, String)>> = Vec::new();

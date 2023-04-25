@@ -36,6 +36,9 @@ _anek() {
             anek,variable)
                 cmd="anek__variable"
                 ;;
+            anek,view)
+                cmd="anek__view"
+                ;;
             anek__help,completions)
                 cmd="anek__help__completions"
                 ;;
@@ -67,7 +70,7 @@ _anek() {
 
     case "${cmd}" in
         anek)
-            opts="-q -h -V --quiet --help --version new variable list edit run completions report help"
+            opts="-q -h -V --quiet --help --version new variable view list edit run completions report help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -429,6 +432,15 @@ _anek() {
                     COMPREPLY=()
                     ;;
             esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__view)
+            opts="-h --help [PATH]"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
