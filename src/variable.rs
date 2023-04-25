@@ -6,7 +6,7 @@ use new_string_template::template::Template;
 use regex::Regex;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_dir, File};
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
@@ -41,6 +41,11 @@ pub struct CliArgs {
     /// Gives long description of the variable
     #[arg(short, long, group = "list_info", value_hint = ValueHint::Other, value_name="VAR")]
     info: Option<String>,
+    /// Update variables read from stdin in the given file
+    ///
+    /// Use it for generated files as it'll remove the comments
+    #[arg(short, long, value_hint = ValueHint::FilePath)]
+    update: Option<PathBuf>,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
     path: PathBuf,
 }
@@ -288,6 +293,52 @@ fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), 
     Ok(())
 }
 
+fn update_from_stdin(file: &PathBuf) -> Result<(), String> {
+    let mut variables: HashMap<String, String> = if !file.exists() {
+        HashMap::new()
+    } else if file.is_file() {
+        let lines = input_lines(&file, None)?;
+        let mut vars: HashMap<&str, &str> = HashMap::new();
+        read_inputs(&lines, &mut vars)?;
+        vars.iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    } else {
+        return Err("File is not an anek file".into());
+    };
+    let mut input = String::new();
+    let mut modified = false;
+    loop {
+        input.clear();
+        let n = io::stdin()
+            .read_line(&mut input)
+            .map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        if let Some((k, v)) = input.split_once("=") {
+            let (k, v) = (k.trim(), v.trim());
+            if variables.contains_key(k) {
+                if variables[k] == v {
+                    continue;
+                }
+                println!("{}: {} -> {}", k, variables[k], v);
+            }
+            variables.insert(k.to_string(), v.to_string());
+            modified = true;
+        }
+    }
+    if modified {
+        let fp = std::fs::File::create(&file).map_err(|e| e.to_string())?;
+        let mut writer = BufWriter::new(fp);
+        for (k, v) in variables {
+            writeln!(writer, "{}={}", k, v).map_err(|e| e.to_string())?;
+        }
+        eprintln!("Updated {:?}", file)
+    }
+    Ok(())
+}
+
 pub fn run_command(args: CliArgs) -> Result<(), String> {
     let anek_dir = AnekDirectory::from(&args.path)?;
     let mut vars: HashSet<&str> = HashSet::new();
@@ -345,6 +396,10 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             &anek_dir.get_file(&AnekDirectoryType::Variables, &name),
             true,
         )?;
+    }
+
+    if let Some(file) = args.update {
+        update_from_stdin(&file)?;
     }
     Ok(())
 }

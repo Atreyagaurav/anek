@@ -353,7 +353,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         } else {
             export::pre_post_templates(&vec![], "")
         };
-    println!("{}", print_pre);
+    print!("{}", print_pre);
     if args.input.len() > 0 {
         exec_pipeline_on_inputfile(
             &pipeline_templates,
@@ -486,6 +486,6 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             (print_pre_line, print_post_line),
         )?;
     }
-    println!("{}", print_post);
+    print!("{}", print_post);
     Ok(())
 }

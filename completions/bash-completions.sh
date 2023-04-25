@@ -414,7 +414,7 @@ _anek() {
             return 0
             ;;
         anek__variable)
-            opts="-s -S -a -l -d -i -h --scan-inputs --scan-commands --add --list --details --info --help [PATH]"
+            opts="-s -S -a -l -d -i -u -h --scan-inputs --scan-commands --add --list --details --info --update --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

@@ -1,7 +1,10 @@
 use itertools::Itertools;
 
 fn csv_head_template(vars: &Vec<String>) -> String {
-    vars.iter().map(|v| v.trim_end_matches("?")).join(",")
+    format!(
+        "{}\n",
+        vars.iter().map(|v| v.trim_end_matches("?")).join(",")
+    )
 }
 
 fn csv_body_template(vars: &Vec<String>) -> String {
@@ -17,7 +20,7 @@ fn json_body_template(vars: &Vec<String>) -> String {
 
 fn plain_body_template(vars: &Vec<String>) -> String {
     vars.iter()
-        .map(|v| format!("{0}={{{0}}}", v))
+        .map(|v| format!("{}={{{}}}", v.trim_end_matches("?"), v))
         .collect::<Vec<String>>()
         .join("\n")
 }
@@ -27,8 +30,9 @@ pub fn pre_post_templates<'a>(
     format: &'a str,
 ) -> (String, &'a str, &'a str, &'a str, &'a str) {
     match format {
+        // pre_everything, pre_line, post_line, between_lines, post_everything
         "csv" => (csv_head_template(vars), "", "", "", ""),
-        "json" => ("[".to_string(), "  {", "}", ",", "]"),
+        "json" => ("[\n".to_string(), "  {", "}", ",", "]\n"),
         &_ => ("".to_string(), "", "", "", ""),
     }
 }
