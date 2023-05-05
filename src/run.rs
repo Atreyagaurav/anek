@@ -122,6 +122,12 @@ pub struct CliArgs {
     overwrite: Vec<String>,
     #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
     path: PathBuf,
+    /// Arguments to pass to the action template as ARG<N>
+    ///
+    /// The arguments passed here can be accessed as ARG1,ARG2,etc in
+    /// the template.
+    #[arg(num_args(0..), last(true), requires="action")]
+    command_args: Vec<String>,
 }
 
 pub fn exec_on_inputfile(
@@ -329,6 +335,15 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     overwrite.insert("", ""); // to replace {} as empty string.
     overwrite.insert("{", "{"); // to replace {{} as {
     overwrite.insert("}", "}"); // to replace {}} as }
+    let command_args: Vec<(String, &str)> = args
+        .command_args
+        .iter()
+        .enumerate()
+        .map(|(i, a)| (format!("ARG{}", i + 1), a.as_str()))
+        .collect();
+    command_args.iter().for_each(|(k, v)| {
+        overwrite.insert(k.as_str(), *v);
+    });
     if args.overwrite.len() > 0 {
         for vars in &args.overwrite {
             let mut split_data = vars.split(":").map(|s| s.split("=")).flatten();
@@ -413,8 +428,9 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             )?;
         }
     } else if let Some(loop_name) = args.r#loop {
-        let loop_inputs =
-            variable::loop_inputs(&anek_dir.get_file(&AnekDirectoryType::Loops, &loop_name))?;
+        let loop_inputs = variable::loop_inputs(
+            &anek_dir.get_file(&AnekDirectoryType::Loops, &format!("{}.d", loop_name)),
+        )?;
 
         let permutations = loop_inputs
             .into_iter()
