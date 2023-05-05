@@ -51,6 +51,7 @@ pub struct CliArgs {
 }
 
 pub static OPTIONAL_RENDER_CHAR: char = '?';
+pub static LITERAL_VALUE_QUOTE_CHAR: char = '"';
 
 pub fn input_lines(
     filename: &PathBuf,
@@ -108,8 +109,10 @@ pub fn render_template(
             let template_str: String = templ.render_nofail(&input_map);
             lazy_static! {
                 static ref CMD_RE: Regex = Regex::new(&format!(
-                    "{}{}{}",
-                    r"\{((?:\w+[",
+                    "{}{}{}{}{}",
+                    r"\{((?:[a-zA-Z0-9_",
+                    LITERAL_VALUE_QUOTE_CHAR.to_string(),
+                    "-]+[",
                     OPTIONAL_RENDER_CHAR.to_string(),
                     r"]?)+)\}"
                 ))
@@ -121,17 +124,17 @@ pub fn render_template(
                 let cg = cap.get(1).unwrap();
                 let cap_slice = &template_str[cg.start()..cg.end()];
                 for csg in cap_slice.split(OPTIONAL_RENDER_CHAR) {
-                    // replace the template with | with first valid
-                    // value
+                    // replace the template with ? with first valid
+                    // value or first literal string
                     if let Some(val) = input_map.get(csg) {
                         new_map.insert(cap_slice, val);
                         break;
+                    } else if csg.starts_with(LITERAL_VALUE_QUOTE_CHAR)
+                        && csg.ends_with(LITERAL_VALUE_QUOTE_CHAR)
+                    {
+                        new_map.insert(cap_slice, &csg[1..(csg.len() - 1)]);
+                        break;
                     }
-                }
-                if !new_map.contains_key(cap_slice) && cap_slice.ends_with(OPTIONAL_RENDER_CHAR) {
-                    // ending template with | means render it empty if
-                    // none of the variables are found
-                    new_map.insert(cap_slice, "");
                 }
             }
 

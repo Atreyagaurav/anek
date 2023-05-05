@@ -112,6 +112,8 @@ You can give a template, and then it'll run it. A command template is a shell co
 
 In case the variable is not found it'll error out with a message. If you want to avoid that, and use empty string if the variable is not found then use =?= at the end of the name. This is a OR operator, that'll use the first varible it'll find. So, ={mean?sd}= will try to render it with =mean= if not then =sd= and if not it'll fail. while ={mean?sd?}= will try those two and if not found it'll render it as empty. Simple ={mean?}= will render mean empty if it cannot find it.
 
+You can also use a literal string as a replacement character if the variable is not available, for example ={mean?"mean"}= will first search for mean variable, if it cannot find it, then it'll render the literal string =mean=.
+
 **** Command
 You can give the name of the command file saved inside anek commands and it'll run it. Since they're just a simple template that'll be filled and run, and the file itself is saved inside the hidden directory =.anek=, keep the commands simple. If you need some complicated logic (more than a single line), just write those in a shell script in the working directory and use the command file to pass the arguments that are the variables to the script.
 
