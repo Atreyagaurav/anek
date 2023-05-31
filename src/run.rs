@@ -271,7 +271,8 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         NumberRangeOptions::default()
             .with_list_sep(',')
             .with_range_sep('-')
-            .parse(&f)?
+            .parse(&f)
+            .map_err(|s| s.to_string())?
             .collect()
     } else {
         HashSet::new()
