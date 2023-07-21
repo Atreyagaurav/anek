@@ -333,9 +333,6 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
     };
 
     let mut overwrite: HashMap<&str, &str> = HashMap::new();
-    overwrite.insert("", ""); // to replace {} as empty string.
-    overwrite.insert("{", "{"); // to replace {{} as {
-    overwrite.insert("}", "}"); // to replace {}} as }
     let command_args: Vec<(String, &str)> = args
         .command_args
         .iter()

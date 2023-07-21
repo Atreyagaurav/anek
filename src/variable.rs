@@ -52,6 +52,22 @@ pub struct CliArgs {
 
 pub static OPTIONAL_RENDER_CHAR: char = '?';
 pub static LITERAL_VALUE_QUOTE_CHAR: char = '"';
+pub static LITERAL_REPLACEMENTS: [&str; 3] = [
+    "",  // to replace {} as empty string.
+    "{", // to replace {{} as {
+    "}", // to replace {}} as }
+];
+lazy_static! {
+    pub static ref COMMAND_REGEX: Regex = Regex::new(&format!(
+        "{}{}{}{}{}",
+        r"\{((?:[a-zA-Z0-9_",
+        LITERAL_VALUE_QUOTE_CHAR.to_string(),
+        "-]+[",
+        OPTIONAL_RENDER_CHAR.to_string(),
+        r"]?)+)\}"
+    ))
+    .unwrap();
+}
 
 pub fn input_lines(
     filename: &PathBuf,
@@ -107,28 +123,24 @@ pub fn render_template(
         Ok(c) => c,
         Err(_) => {
             let template_str: String = templ.render_nofail(&input_map);
-            lazy_static! {
-                static ref CMD_RE: Regex = Regex::new(&format!(
-                    "{}{}{}{}{}",
-                    r"\{((?:[a-zA-Z0-9_",
-                    LITERAL_VALUE_QUOTE_CHAR.to_string(),
-                    "-]+[",
-                    OPTIONAL_RENDER_CHAR.to_string(),
-                    r"]?)+)\}"
-                ))
-                .unwrap();
-            }
             let mut new_map = input_map.clone();
 
-            for cap in CMD_RE.captures_iter(&template_str) {
+            LITERAL_REPLACEMENTS.iter().for_each(|r| {
+                new_map.insert(r, r);
+            });
+
+            for cap in COMMAND_REGEX.captures_iter(&template_str) {
                 let cg = cap.get(1).unwrap();
                 let cap_slice = &template_str[cg.start()..cg.end()];
-                for csg in cap_slice.split(OPTIONAL_RENDER_CHAR) {
+                for csg in cap_slice.split(OPTIONAL_RENDER_CHAR).map(|s| s.trim()) {
                     // replace the template with ? with first valid
                     // value or first literal string
                     if let Some(val) = input_map.get(csg) {
                         new_map.insert(cap_slice, val);
                         break;
+                    } else if csg == "" {
+                        // the input_map.get() is not working for "", idk why
+                        new_map.insert(cap_slice, "");
                     } else if csg.starts_with(LITERAL_VALUE_QUOTE_CHAR)
                         && csg.ends_with(LITERAL_VALUE_QUOTE_CHAR)
                     {
@@ -151,11 +163,8 @@ pub fn read_inputs_set_from_commands<'a>(
     enum_lines: &'a Vec<(usize, String)>,
     input_map: &mut HashSet<&'a str>,
 ) -> Result<(), String> {
-    lazy_static! {
-        static ref CMD_RE: Regex = Regex::new(r"\{((?:\w+[|]?)+)\}").unwrap();
-    }
     for (_, line) in enum_lines {
-        for cap in CMD_RE.captures_iter(line) {
+        for cap in COMMAND_REGEX.captures_iter(line) {
             let cg = cap.get(1).unwrap();
             let cap_slice = &line[cg.start()..cg.end()];
             cap_slice.split(OPTIONAL_RENDER_CHAR).for_each(|cg| {
