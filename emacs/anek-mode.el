@@ -15,20 +15,50 @@
   :group 'org-link
   :type 'command)
 
-(defvar anek-url-template "./.anek/inputs/"
+(defvar anek-url-template nil
   "Template to be used to open anek lists")
 
 (defun set-anek-url-template (templ)
   (interactive "sEnter Template:")
   (setq anek-url-template templ))
 
-(defun fill-anek-url-template (anek)
+(defun anek-run-command (args)
   (string-trim-right
    (shell-command-to-string
-    (format "%s -q run -R '%s' -i %s"
+    (format "%s -q %s"
 	    anek-command
+	    args))))
+
+(defun fill-anek-url-template (anek)
+  (anek-run-command
+    (format "run -R '%s' -i %s"
 	    anek-url-template
-	    anek))))
+	    anek)))
+
+(defun anek-list (flag)
+  (split-string (anek-run-command flag) "\n"))
 
 (defun org-anek-open (path)
-  (find-file-other-window (fill-anek-url-template path)))
+  (if anek-url-template
+      (find-file-other-window (fill-anek-url-template path))
+    (message "Set Anek Url Template first.")))
+
+(defun anek-set-url-from-file (template)
+  (interactive (list
+		(let ((file (read-file-name "Select a file: ")))
+		  (read-string "Anek URL Template: " file))))
+  (set-anek-url-template template))
+
+(defun anek-links-buffer (batch-file)
+  (interactive (list (completing-read
+		      "Batch File:"
+		      (anek-list "list -b"))))
+  (let ((files (anek-list (concat "edit -e batch/" batch-file)))
+	(buf (get-buffer-create (format "*Anek [%s]*" batch-file))))
+    (with-current-buffer buf
+      (insert "Links for " batch-file "\n")
+      (cl-loop
+       for file in files
+       do (insert (format "[[anek:%s][%s]]\n" file file)))
+      (org-mode))
+    (switch-to-buffer buf)))
