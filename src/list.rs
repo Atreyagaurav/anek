@@ -1,9 +1,6 @@
 use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::dtypes::AnekDirectoryType;
 use crate::{
@@ -14,21 +11,22 @@ use crate::{
 #[derive(Args)]
 #[command(group = ArgGroup::new("anek-type").required(false).multiple(false))]
 pub struct CliArgs {
-    /// Filter list to those containing values
+    /// Filter list to those matching pattern
     #[arg(short = 'F', long, value_delimiter = ',', requires = "anek-type", value_hint = ValueHint::Other)]
     filter: Vec<String>,
+    /// Search for the content inside the matched files
+    ///
+    /// Prints the line number and the line with the matched content
+    #[arg(short, long, requires = "anek-type", value_hint = ValueHint::Other)]
+    search: Vec<String>,
     /// Variables
     ///
-    /// List the variables in the variables directory, if you use
-    /// --filter, it'll list only the variables with matchig text in
-    /// their description
+    /// List the variables in the variables directory
     #[arg(short, long, group = "anek-type", action)]
     variables: bool,
     /// Inputs
     ///
-    /// List the files you've saved as inputs, the --filter command
-    /// will filter the files including the variable value as
-    /// non-empty
+    /// List the files you've saved as inputs
     #[arg(short, long, group = "anek-type", action)]
     inputs: bool,
     /// Commands
@@ -38,20 +36,17 @@ pub struct CliArgs {
     command: bool,
     /// Pipelines
     ///
-    /// List the pipelines files. The --filter will filter the
-    /// pipelines containing the given keyword as a command
+    /// List the pipelines files.
     #[arg(short, long, group = "anek-type", action)]
     pipeline: bool,
     /// Loops
     ///
-    /// List the files in loop directory, --filter will only list the
-    /// files that have the filter keyword in their path
+    /// List the files in loop directory,
     #[arg(short, long, group = "anek-type", action)]
     loops: bool,
     /// Batch
     ///
-    /// List the batch files, --filter will filter the files
-    /// containing the inputs in the file
+    /// List the batch files,
     #[arg(short, long, group = "anek-type", action)]
     batch: bool,
     /// All files
@@ -70,37 +65,29 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
     } else {
         variable::list_anek_filenames
     };
-    let paths = if args.variables {
-        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Variables))?;
-        if args.filter.is_empty() {
-            lst
-        } else {
-            lst.iter()
-                .filter(|fnm| {
-                    let lines = variable::input_lines(
-                        &anek_dir.get_file(&AnekDirectoryType::Variables, &fnm),
-                        None,
-                    )
-                    .unwrap();
-                    args.filter
-                        .iter()
-                        .all(|f| lines.iter().any(|(_, l)| l.contains(f.as_str())))
-                })
-                .map(|s| s.to_string())
-                .collect()
-        }
+    let anek_type = if args.variables {
+        Some(AnekDirectoryType::Variables)
     } else if args.inputs {
-        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Inputs))?;
+        Some(AnekDirectoryType::Inputs)
+    } else if args.batch {
+        Some(AnekDirectoryType::Batch)
+    } else if args.loops {
+        Some(AnekDirectoryType::Loops)
+    } else if args.command {
+        Some(AnekDirectoryType::Commands)
+    } else if args.pipeline {
+        Some(AnekDirectoryType::Pipelines)
+    } else {
+        None
+    };
+    let paths = if let Some(ref at) = anek_type {
+        let lst = list_func(&anek_dir.get_directory(&at))?;
         if args.filter.is_empty() {
             lst
         } else {
             lst.iter()
                 .filter(|f| {
-                    let lines = variable::input_lines(
-                        &anek_dir.get_file(&AnekDirectoryType::Inputs, &f),
-                        None,
-                    )
-                    .unwrap();
+                    let lines = variable::input_lines(&anek_dir.get_file(&at, &f), None).unwrap();
                     let mut input_map: HashMap<&str, &str> = HashMap::new();
                     variable::read_inputs(&lines, &mut input_map).unwrap();
                     args.filter.iter().all(|f| {
@@ -110,77 +97,6 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
                             false
                         }
                     })
-                })
-                .map(|s| s.to_string())
-                .collect()
-        }
-    } else if args.batch {
-        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Batch))?;
-        if args.filter.is_empty() {
-            lst
-        } else {
-            lst.iter()
-                .filter(|fnm| {
-                    let lines = variable::input_lines(
-                        &anek_dir.get_file(&AnekDirectoryType::Batch, &fnm),
-                        None,
-                    )
-                    .unwrap();
-                    args.filter
-                        .iter()
-                        .all(|f| lines.iter().any(|(_, l)| l == f))
-                })
-                .map(|s| s.to_string())
-                .collect()
-        }
-    } else if args.loops {
-        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Loops))?;
-        if args.filter.is_empty() {
-            lst
-        } else {
-            lst.iter()
-                .filter(|name| args.filter.iter().all(|f| name.contains(f)))
-                .map(|s| s.to_string())
-                .collect()
-        }
-    } else if args.command {
-        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Commands))?;
-        if args.filter.is_empty() {
-            lst
-        } else {
-            lst.iter()
-                .filter(|fnm| {
-                    let cmd_content = variable::input_lines(
-                        &anek_dir.get_file(&AnekDirectoryType::Commands, &fnm),
-                        None,
-                    )
-                    .unwrap();
-                    let mut cmd_variables: HashSet<&str> = HashSet::new();
-                    variable::read_inputs_set_from_commands(&cmd_content, &mut cmd_variables)
-                        .unwrap();
-
-                    args.filter
-                        .iter()
-                        .all(|f| cmd_variables.contains(f.as_str()))
-                })
-                .map(|s| s.to_string())
-                .collect()
-        }
-    } else if args.pipeline {
-        let lst = list_func(&anek_dir.get_directory(&AnekDirectoryType::Pipelines))?;
-        if args.filter.is_empty() {
-            lst
-        } else {
-            lst.iter()
-                .filter(|fnm| {
-                    let lines = variable::input_lines(
-                        &anek_dir.get_file(&AnekDirectoryType::Pipelines, &fnm),
-                        None,
-                    )
-                    .unwrap();
-                    args.filter
-                        .iter()
-                        .all(|f| lines.iter().any(|(_, l)| l == f))
                 })
                 .map(|s| s.to_string())
                 .collect()
@@ -200,10 +116,22 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
             .flatten()
             .collect()
     };
+
     for p in paths {
         match p.rsplit_once("/") {
             Some((dir, file)) => println!("{}/{}", dir.truecolor(100, 100, 100), file),
             None => println!("{}", p),
+        }
+        if !args.search.is_empty() {
+            let fpath = if let Some(ref at) = anek_type {
+                anek_dir.get_file(&at, &p)
+            } else {
+                anek_dir.root.join(p)
+            };
+            let matching_lines = variable::matching_lines(&fpath, &args.search, false)?;
+            for (ln, line) in matching_lines {
+                println!("{ln}: {line}",);
+            }
         }
     }
     Ok(())

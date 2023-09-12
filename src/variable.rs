@@ -100,6 +100,35 @@ pub fn input_lines(
     Ok(lines)
 }
 
+pub fn matching_lines(
+    filename: &PathBuf,
+    patterns: &Vec<String>,
+    any: bool,
+) -> Result<Vec<(usize, String)>, String> {
+    let lines = input_lines(filename, None)?;
+    let mut matching_lines: Vec<(usize, String)> = Vec::new();
+    for (i, line) in &lines {
+        if any {
+            for pat in patterns {
+                if line.contains(pat) {
+                    let line = line.replace(&*pat, &pat.reversed().to_string());
+                    matching_lines.push((*i, line));
+                }
+            }
+        } else {
+            if patterns.iter().all(|p| line.contains(&*p)) {
+                let mut line = line.clone();
+                patterns.iter().for_each(|p| {
+                    line = line.replace(&*p, &p.reversed().to_string());
+                });
+
+                matching_lines.push((*i, line));
+            }
+        }
+    }
+    Ok(matching_lines)
+}
+
 // todo: make it into generic function?
 pub fn read_inputs_set<'a>(
     enum_lines: &'a Vec<(usize, String)>,
