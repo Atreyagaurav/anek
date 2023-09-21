@@ -187,7 +187,7 @@ pub fn exec_on_inputfile(
     let overwrite_meta: Vec<(&str, String)> = overwrite
         .iter()
         .map(|(k, v)| -> Result<(&str, String), String> {
-            variable::render_template(&Template::new(v.to_string()), &input_map)
+            variable::render_template(&Template::new(v.to_string()), &input_map, wd)
                 .and_then(|s| Ok((*k, s)))
                 .map_err(|e| e.to_string())
         })
@@ -196,7 +196,7 @@ pub fn exec_on_inputfile(
         input_map.insert(k, &v);
     }
 
-    let command = variable::render_template(cmd, &input_map)?;
+    let command = variable::render_template(cmd, &input_map, wd)?;
     if !pipable {
         eprint!("{} ({}): ", "Command".bright_green(), name);
     }
@@ -243,7 +243,7 @@ pub fn exec_pipeline(
     print_extras: (&str, &str),
 ) -> Result<(), String> {
     for (name, _, command) in commands {
-        let cmd = variable::render_template(command, &inputs)?;
+        let cmd = variable::render_template(command, &inputs, wd)?;
         if !pipable {
             eprint!("{} ({}): ", "Command".bright_green(), name);
         }

@@ -6,8 +6,9 @@ use new_string_template::template::Template;
 use regex::Regex;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_dir, File};
-use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
+use subprocess::Exec;
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
 
@@ -67,6 +68,18 @@ lazy_static! {
         r"]?)+)\}"
     ))
     .unwrap();
+    pub static ref SHELL_COMMAND_REGEX: Regex = Regex::new(&format!(r"[$]\((.*?)\)")).unwrap();
+}
+
+fn cmd_output(cmd: &str, wd: &PathBuf) -> Result<String, String> {
+    let mut out: String = String::new();
+    Exec::shell(cmd)
+        .cwd(wd)
+        .stream_stdout()
+        .map_err(|e| e.to_string())?
+        .read_to_string(&mut out)
+        .map_err(|e| e.to_string())?;
+    Ok(out)
 }
 
 pub fn input_lines(
@@ -147,6 +160,7 @@ pub fn read_inputs_set<'a>(
 pub fn render_template(
     templ: &Template,
     input_map: &HashMap<&str, &str>,
+    wd: &PathBuf,
 ) -> Result<String, String> {
     let rend = match templ.render(&input_map) {
         Ok(c) => c,
@@ -185,7 +199,18 @@ pub fn render_template(
             }
         }
     };
-    Ok(rend)
+    let mut last_match = 0usize;
+    let mut final_string = String::with_capacity(rend.len());
+    for cmd in SHELL_COMMAND_REGEX.captures_iter(&rend) {
+        let m = cmd.get(0).unwrap();
+        let cmd = cmd.get(1).unwrap();
+        final_string.push_str(&rend[last_match..m.start()]);
+        let output = cmd_output(cmd.as_str(), wd)?;
+        final_string.push_str(&output);
+        last_match = m.end();
+    }
+    final_string.push_str(&rend[last_match..]);
+    Ok(final_string)
 }
 
 pub fn read_inputs_set_from_commands<'a>(
