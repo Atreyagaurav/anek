@@ -18,12 +18,11 @@ pub struct CliArgs {
     path: PathBuf,
 }
 
-pub fn new_config(args: CliArgs) -> Result<(), String> {
+pub fn new_config(args: CliArgs) -> Result<(), anyhow::Error> {
     let ad = AnekDirectory::new(&args.path)?;
 
     for var in args.variables {
-        File::create(ad.get_file(&AnekDirectoryType::Variables, &var))
-            .map_err(|e| e.to_string())?;
+        File::create(ad.get_file(&AnekDirectoryType::Variables, &var))?;
     }
     Ok(())
 }

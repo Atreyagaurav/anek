@@ -1,14 +1,12 @@
+use anyhow::{Context, Error};
 use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
-use lazy_static::lazy_static;
-use new_string_template::template::Template;
-use regex::Regex;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_dir, File};
-use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
-use subprocess::Exec;
+use string_template_plus::{Render, RenderOptions, Template, OPTIONAL_RENDER_CHAR, VARIABLE_REGEX};
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
 
@@ -51,48 +49,17 @@ pub struct CliArgs {
     path: PathBuf,
 }
 
-pub static OPTIONAL_RENDER_CHAR: char = '?';
-pub static LITERAL_VALUE_QUOTE_CHAR: char = '"';
-pub static LITERAL_REPLACEMENTS: [&str; 3] = [
-    "",  // to replace {} as empty string.
-    "{", // to replace {{} as {
-    "}", // to replace {}} as }
-];
-lazy_static! {
-    pub static ref COMMAND_REGEX: Regex = Regex::new(&format!(
-        "{}{}{}{}{}",
-        r"\{((?:[a-zA-Z0-9_",
-        LITERAL_VALUE_QUOTE_CHAR.to_string(),
-        "-]+[",
-        OPTIONAL_RENDER_CHAR.to_string(),
-        r"]?)+)\}"
-    ))
-    .unwrap();
-    pub static ref SHELL_COMMAND_REGEX: Regex = Regex::new(&format!(r"[$]\((.*?)\)")).unwrap();
-}
-
-fn cmd_output(cmd: &str, wd: &PathBuf) -> Result<String, String> {
-    let mut out: String = String::new();
-    Exec::shell(cmd)
-        .cwd(wd)
-        .stream_stdout()
-        .map_err(|e| e.to_string())?
-        .read_to_string(&mut out)
-        .map_err(|e| e.to_string())?;
-    Ok(out)
-}
-
 pub fn input_lines(
     filename: &PathBuf,
     renumber: Option<usize>,
-) -> Result<Vec<(usize, String)>, String> {
+) -> Result<Vec<(usize, String)>, Error> {
     let file = match File::open(&filename) {
         Ok(f) => f,
         Err(e) => {
-            return Err(format!(
+            return Err(Error::msg(format!(
                 "Couldn't open input file: {:?}\n{:?}",
                 &filename, e
-            ))
+            )))
         }
     };
     let reader_lines = BufReader::new(file).lines();
@@ -117,7 +84,7 @@ pub fn matching_lines(
     filename: &PathBuf,
     patterns: &Vec<String>,
     any: bool,
-) -> Result<Vec<(usize, String)>, String> {
+) -> Result<Vec<(usize, String)>, Error> {
     let lines = input_lines(filename, None)?;
     let mut matching_lines: Vec<(usize, String)> = Vec::new();
     for (i, line) in &lines {
@@ -146,12 +113,11 @@ pub fn matching_lines(
 pub fn read_inputs_set<'a>(
     enum_lines: &'a Vec<(usize, String)>,
     input_map: &mut HashSet<&'a str>,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     for (i, line) in enum_lines {
-        let split_data = match line.split_once("=") {
-            Some(d) => d,
-            None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
-        };
+        let split_data = line
+            .split_once("=")
+            .context(format!("Invalid Line# {}: \"{}\"", i, line))?;
         input_map.insert(split_data.0);
     }
     Ok(())
@@ -161,64 +127,23 @@ pub fn render_template(
     templ: &Template,
     input_map: &HashMap<&str, &str>,
     wd: &PathBuf,
-) -> Result<String, String> {
-    let rend = match templ.render(&input_map) {
-        Ok(c) => c,
-        Err(_) => {
-            let template_str: String = templ.render_nofail(&input_map);
-            let mut new_map = input_map.clone();
-
-            LITERAL_REPLACEMENTS.iter().for_each(|r| {
-                new_map.insert(r, r);
-            });
-
-            for cap in COMMAND_REGEX.captures_iter(&template_str) {
-                let cg = cap.get(1).unwrap();
-                let cap_slice = &template_str[cg.start()..cg.end()];
-                for csg in cap_slice.split(OPTIONAL_RENDER_CHAR).map(|s| s.trim()) {
-                    // replace the template with ? with first valid
-                    // value or first literal string
-                    if let Some(val) = input_map.get(csg) {
-                        new_map.insert(cap_slice, val);
-                        break;
-                    } else if csg == "" {
-                        // the input_map.get() is not working for "", idk why
-                        new_map.insert(cap_slice, "");
-                    } else if csg.starts_with(LITERAL_VALUE_QUOTE_CHAR)
-                        && csg.ends_with(LITERAL_VALUE_QUOTE_CHAR)
-                    {
-                        new_map.insert(cap_slice, &csg[1..(csg.len() - 1)]);
-                        break;
-                    }
-                }
-            }
-
-            match templ.render(&new_map) {
-                Ok(c) => c,
-                Err(e) => return Err(e.to_string()),
-            }
-        }
+) -> Result<String, Error> {
+    let op = RenderOptions {
+        wd: wd.to_path_buf(),
+        variables: input_map
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
     };
-    let mut last_match = 0usize;
-    let mut final_string = String::with_capacity(rend.len());
-    for cmd in SHELL_COMMAND_REGEX.captures_iter(&rend) {
-        let m = cmd.get(0).unwrap();
-        let cmd = cmd.get(1).unwrap();
-        final_string.push_str(&rend[last_match..m.start()]);
-        let output = cmd_output(cmd.as_str(), wd)?;
-        final_string.push_str(&output);
-        last_match = m.end();
-    }
-    final_string.push_str(&rend[last_match..]);
-    Ok(final_string)
+    templ.render(&op)
 }
 
 pub fn read_inputs_set_from_commands<'a>(
     enum_lines: &'a Vec<(usize, String)>,
     input_map: &mut HashSet<&'a str>,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     for (_, line) in enum_lines {
-        for cap in COMMAND_REGEX.captures_iter(line) {
+        for cap in VARIABLE_REGEX.captures_iter(line) {
             let cg = cap.get(1).unwrap();
             let cap_slice = &line[cg.start()..cg.end()];
             cap_slice.split(OPTIONAL_RENDER_CHAR).for_each(|cg| {
@@ -232,28 +157,24 @@ pub fn read_inputs_set_from_commands<'a>(
 pub fn read_inputs<'a>(
     enum_lines: &'a Vec<(usize, String)>,
     input_map: &mut HashMap<&'a str, &'a str>,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     for (i, line) in enum_lines {
-        let split_data = match line.split_once("=") {
-            Some(d) => d,
-            None => return Err(format!("Invalid Line# {}: \"{}\"", i, line)),
-        };
+        let split_data = line
+            .split_once("=")
+            .context(format!("Invalid Line# {}: \"{}\"", i, line))?;
         input_map.insert(split_data.0, split_data.1);
     }
     Ok(())
 }
 
-pub fn list_files_sorted(filename: &PathBuf) -> Result<std::vec::IntoIter<PathBuf>, String> {
-    let files = match read_dir(&filename) {
-        Ok(l) => l,
-        Err(e) => return Err(format!("Couldn't open directory: {:?}\n{:?}", &filename, e)),
-    };
+pub fn list_files_sorted(filename: &PathBuf) -> Result<std::vec::IntoIter<PathBuf>, Error> {
+    let files = read_dir(&filename)?;
     return Ok(files
         .map(|f| -> PathBuf { f.unwrap().path().to_owned() })
         .sorted());
 }
 
-pub fn list_files_sorted_recursive(filename: &PathBuf) -> Result<Vec<PathBuf>, String> {
+pub fn list_files_sorted_recursive(filename: &PathBuf) -> Result<Vec<PathBuf>, Error> {
     let mut file_list: Vec<PathBuf> = Vec::new();
     let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![filename.clone()]);
 
@@ -269,7 +190,7 @@ pub fn list_files_sorted_recursive(filename: &PathBuf) -> Result<Vec<PathBuf>, S
     return Ok(file_list);
 }
 
-pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
+pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, Error> {
     let dirpath_full = dirpath.to_str().unwrap();
     let filenames: Vec<String> = list_files_sorted_recursive(dirpath)?
         .iter()
@@ -285,7 +206,7 @@ pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
     Ok(filenames)
 }
 
-pub fn list_anek_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
+pub fn list_anek_filenames(dirpath: &PathBuf) -> Result<Vec<String>, Error> {
     let dirpath_full = dirpath.to_str().unwrap();
     let mut file_list: HashSet<PathBuf> = HashSet::new();
     let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![dirpath.clone()]);
@@ -318,7 +239,7 @@ pub fn list_anek_filenames(dirpath: &PathBuf) -> Result<Vec<String>, String> {
     Ok(filenames)
 }
 
-pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>>, String> {
+pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>>, Error> {
     let input_files = list_files_sorted(&dirname)?;
     let mut input_values: Vec<Vec<(String, usize, String)>> = Vec::new();
     for file in input_files {
@@ -337,11 +258,8 @@ pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>
     Ok(input_values)
 }
 
-fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), String> {
-    let file = match File::open(path) {
-        Ok(f) => f,
-        Err(e) => return Err(format!("Couldn't open input file: {:?}\n{:?}", &path, e)),
-    };
+fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), Error> {
+    let file = File::open(path)?;
     print!("{} {:10}: ", "⇒".bright_blue(), name.green());
 
     let mut reader_lines = BufReader::new(file).lines();
@@ -359,7 +277,7 @@ fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), 
     Ok(())
 }
 
-fn update_from_stdin(file: &PathBuf) -> Result<(), String> {
+fn update_from_stdin(file: &PathBuf) -> Result<(), Error> {
     let mut variables: HashMap<String, String> = if !file.exists() {
         HashMap::new()
     } else if file.is_file() {
@@ -370,7 +288,7 @@ fn update_from_stdin(file: &PathBuf) -> Result<(), String> {
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect()
     } else {
-        return Err("File is not an anek file".into());
+        return Err(Error::msg("File is not an anek file"));
     };
 
     for (k, v) in variables.iter() {
@@ -382,9 +300,7 @@ fn update_from_stdin(file: &PathBuf) -> Result<(), String> {
     let mut modified = false;
     loop {
         input.clear();
-        let n = io::stdin()
-            .read_line(&mut input)
-            .map_err(|e| e.to_string())?;
+        let n = io::stdin().read_line(&mut input)?;
         if n == 0 {
             break;
         }
@@ -401,17 +317,17 @@ fn update_from_stdin(file: &PathBuf) -> Result<(), String> {
         }
     }
     if modified {
-        let fp = std::fs::File::create(&file).map_err(|e| e.to_string())?;
+        let fp = std::fs::File::create(&file)?;
         let mut writer = BufWriter::new(fp);
         for (k, v) in variables {
-            writeln!(writer, "{}={}", k, v).map_err(|e| e.to_string())?;
+            writeln!(writer, "{}={}", k, v)?;
         }
         eprintln!("Updated {:?}", file)
     }
     Ok(())
 }
 
-pub fn run_command(args: CliArgs) -> Result<(), String> {
+pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from(&args.path)?;
     let mut vars: HashSet<&str> = HashSet::new();
     let inp_lines: Vec<Vec<(usize, String)>>;
@@ -423,11 +339,11 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         inp_lines = files
             .iter()
             .map(|file| input_lines(&file, None))
-            .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
+            .collect::<Result<Vec<Vec<(usize, String)>>, Error>>()?;
         inp_lines
             .iter()
             .map(|lns| read_inputs_set(lns, &mut vars))
-            .collect::<Result<(), String>>()?;
+            .collect::<Result<(), Error>>()?;
     }
 
     if args.scan_commands {
@@ -436,21 +352,21 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         cmd_lines = files
             .iter()
             .map(|file| input_lines(&file, None))
-            .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
+            .collect::<Result<Vec<Vec<(usize, String)>>, Error>>()?;
         cmd_lines
             .iter()
             .map(|lines| read_inputs_set_from_commands(lines, &mut vars))
-            .collect::<Result<(), String>>()?;
+            .collect::<Result<(), Error>>()?;
     }
     for var in vars {
         let var_file = anek_dir.get_file(&AnekDirectoryType::Variables, &var);
         if !var_file.exists() {
             println!("{}: {}", "New".red().bold(), var);
             if args.add {
-                File::create(var_file).map_err(|e| e.to_string())?;
+                File::create(var_file)?;
             }
         } else if !var_file.is_file() {
-            return Err(format!("{:?} is not a file", var_file));
+            return Err(Error::msg(format!("{:?} is not a file", var_file)));
         }
     }
     if args.list || args.details {

@@ -1,3 +1,4 @@
+use anyhow::Error;
 use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
 use std::{collections::HashMap, path::PathBuf};
@@ -58,7 +59,7 @@ pub struct CliArgs {
     path: PathBuf,
 }
 
-pub fn list_options(args: CliArgs) -> Result<(), String> {
+pub fn list_options(args: CliArgs) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from(&args.path)?;
     let list_func = if args.all {
         variable::list_filenames
@@ -104,7 +105,7 @@ pub fn list_options(args: CliArgs) -> Result<(), String> {
     } else {
         let all_dirs = anekdirtype_iter()
             .map(|adt| list_func(&anek_dir.get_directory(adt)))
-            .collect::<Result<Vec<Vec<String>>, String>>()?;
+            .collect::<Result<Vec<Vec<String>>, Error>>()?;
         anekdirtype_iter()
             .zip(all_dirs)
             .map(|(adt, fnames)| {

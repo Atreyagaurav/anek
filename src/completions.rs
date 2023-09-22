@@ -1,3 +1,4 @@
+use anyhow::Error;
 use clap::{ArgGroup, Args, Command};
 use clap_complete::Shell;
 
@@ -15,7 +16,7 @@ pub struct CliArgs {
     fish: bool,
 }
 
-pub fn print_completions(args: CliArgs, clap_app: &mut Command) -> Result<(), String> {
+pub fn print_completions(args: CliArgs, clap_app: &mut Command) -> Result<(), Error> {
     let shell = if args.bash {
         Shell::Bash
     } else if args.zsh {

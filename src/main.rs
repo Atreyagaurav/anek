@@ -1,3 +1,4 @@
+use anyhow::Error;
 use chrono::Local;
 use clap::{CommandFactory, Parser, Subcommand};
 use colored::Colorize;
@@ -93,7 +94,7 @@ fn main() {
 
     let start_time = Local::now().format("%Y-%m-%d %H:%M:%S");
     let start = Instant::now();
-    let action_result = match g_args.action {
+    let action_result: Result<(), Error> = match g_args.action {
         Action::New(args) => new::new_config(args),
         Action::Variable(args) => variable::run_command(args),
         Action::List(args) => list::list_options(args),

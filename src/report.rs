@@ -1,3 +1,4 @@
+use anyhow::Error;
 use chrono::Local;
 use clap::{Args, ValueHint};
 use std::fs;
@@ -23,7 +24,7 @@ fn capitalize(s: &str) -> String {
     v.into_iter().collect()
 }
 
-pub fn generate_report(anekdir: AnekDirectory) -> Result<String, String> {
+pub fn generate_report(anekdir: AnekDirectory) -> Result<String, Error> {
     let mut report = String::new();
     report.push_str("[Anek Configuration](https://github.com/Atreyagaurav/anek) File\n\n");
     report.push_str(&format!(
@@ -46,8 +47,7 @@ pub fn generate_report(anekdir: AnekDirectory) -> Result<String, String> {
             toc.push_str(&format!("   {}.{}. {}\n", i + 1, j + 1, &filename));
             contents.push_str(&format!("## {}\n", &filename));
 
-            let file_contents =
-                fs::read_to_string(&anekdir.get_file(adt, &filename)).map_err(|e| e.to_string())?;
+            let file_contents = fs::read_to_string(&anekdir.get_file(adt, &filename))?;
             contents.push_str("```\n");
             contents.push_str(&file_contents);
             contents.push_str("```\n");
@@ -59,19 +59,19 @@ pub fn generate_report(anekdir: AnekDirectory) -> Result<String, String> {
     Ok(report)
 }
 
-pub fn save_report(args: CliArgs) -> Result<(), String> {
+pub fn save_report(args: CliArgs) -> Result<(), Error> {
     let filepath = AnekDirectory::from(&args.path)?;
     if !filepath.root.exists() {
-        return Err(format!(
+        return Err(Error::msg(format!(
             "The path {:?} doesn't have anek configuration",
             args.path
-        ));
+        )));
     } else {
         if !filepath.root.is_dir() {
-            return Err(format!(
+            return Err(Error::msg(format!(
                 "{:?} file exists which is not a anek configuration",
                 filepath.root
-            ));
+            )));
         } else {
             // make report
             let report_fname = args.filename.with_extension("md");
@@ -80,10 +80,8 @@ pub fn save_report(args: CliArgs) -> Result<(), String> {
                 report_fname, filepath.root
             );
             let report_content = generate_report(filepath)?;
-            let mut file = fs::File::create(std::env::current_dir().unwrap().join(report_fname))
-                .map_err(|e| e.to_string())?;
-            file.write_all(report_content.as_bytes())
-                .map_err(|e| e.to_string())?;
+            let mut file = fs::File::create(std::env::current_dir().unwrap().join(report_fname))?;
+            file.write_all(report_content.as_bytes())?;
         }
     }
     Ok(())

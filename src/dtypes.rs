@@ -1,3 +1,4 @@
+use anyhow::Error;
 use core::slice::Iter;
 use std::{fs::create_dir, path::PathBuf};
 
@@ -69,40 +70,43 @@ pub struct AnekDirectory {
 }
 
 impl AnekDirectory {
-    pub fn from(wd: &PathBuf) -> Result<Self, String> {
+    pub fn from(wd: &PathBuf) -> Result<Self, Error> {
         let root = wd.join(".anek");
         if root.exists() {
             if root.is_dir() {
                 Ok(Self { root })
             } else {
-                Err(format!("{:?} is not a directory", root))
+                Err(Error::msg(format!("{:?} is not a directory", root)))
             }
         } else {
-            let wd = wd.canonicalize().map_err(|e| e.to_string())?;
+            let wd = wd.canonicalize()?;
             if let Some(p) = wd.parent() {
                 AnekDirectory::from(&p.to_path_buf())
             } else {
-                Err("No .anek configuration in the current path".to_string())
+                Err(Error::msg("No .anek configuration in the current path"))
             }
         }
     }
 
-    pub fn new(wd: &PathBuf) -> Result<Self, String> {
+    pub fn new(wd: &PathBuf) -> Result<Self, Error> {
         let root = wd.join(".anek");
         if root.exists() {
             if root.is_dir() {
-                Err(format!("{:?} already has anek configuration", root))
+                Err(Error::msg(format!(
+                    "{:?} already has anek configuration",
+                    root
+                )))
             } else {
-                Err(format!(
+                Err(Error::msg(format!(
                     "{:?} file exists, that is not anek configuration",
                     root
-                ))
+                )))
             }
         } else {
-            create_dir(&root).map_err(|e| e.to_string())?;
+            create_dir(&root)?;
             let anek = AnekDirectory::from(&wd)?;
             for adt in anekdirtype_iter() {
-                create_dir(anek.get_directory(adt)).map_err(|e| e.to_string())?;
+                create_dir(anek.get_directory(adt))?;
             }
             Ok(anek)
         }

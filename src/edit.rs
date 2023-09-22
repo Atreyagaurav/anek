@@ -1,3 +1,4 @@
+use anyhow::Error;
 use clap::{Args, ValueHint};
 use std::env;
 use std::path::PathBuf;
@@ -20,20 +21,15 @@ pub struct CliArgs {
     path: PathBuf,
 }
 
-pub fn edit_file(args: CliArgs) -> Result<(), String> {
+pub fn edit_file(args: CliArgs) -> Result<(), Error> {
     let filepath = AnekDirectory::from(&args.path)?.root.join(args.anek_file);
     if args.echo {
-        let contents = match std::fs::read_to_string(filepath) {
-            Ok(c) => c,
-            Err(e) => return Err(e.to_string()),
-        };
+        let contents = std::fs::read_to_string(filepath)?;
         print!("{}", contents);
     } else {
         let command = format!("{} {:?}", env::var("EDITOR").unwrap(), filepath);
         println!("{}", command);
-        if let Err(e) = Exec::shell(command).join() {
-            return Err(format!("Can not edit file:{:?}\n {}", filepath, e));
-        };
+        Exec::shell(command).join()?;
     }
     Ok(())
 }

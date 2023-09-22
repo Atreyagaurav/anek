@@ -1,11 +1,12 @@
+use anyhow::{Context, Error};
 use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
-use new_string_template::template::Template;
 use number_range::NumberRangeOptions;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
+use string_template_plus::{parse_template, Template};
 use subprocess::Exec;
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
@@ -139,7 +140,7 @@ pub fn exec_on_inputfile(
     pipable: bool,
     name: &str,
     print_extras: (&str, &str),
-) -> Result<(), String> {
+) -> Result<(), Error> {
     let mut files: Vec<PathBuf> = Vec::new();
     for filename in filenames {
         if filename.is_dir() {
@@ -168,30 +169,28 @@ pub fn exec_on_inputfile(
                 files.push(filename.clone());
             }
         } else {
-            return Err(format!(
+            return Err(Error::msg(format!(
                 "Path {:?} is neither a directory nor a file",
                 filename
-            ));
+            )));
         }
     }
     let mut input_map: HashMap<&str, &str> = HashMap::new();
     let lines = files
         .iter()
         .map(|file| variable::input_lines(&file, None))
-        .collect::<Result<Vec<Vec<(usize, String)>>, String>>()?;
+        .collect::<Result<Vec<Vec<(usize, String)>>, Error>>()?;
     lines
         .iter()
         .map(|l| variable::read_inputs(&l, &mut input_map))
-        .collect::<Result<(), String>>()?;
+        .collect::<Result<(), Error>>()?;
     // render the metavariables in the overwrite
     let overwrite_meta: Vec<(&str, String)> = overwrite
         .iter()
-        .map(|(k, v)| -> Result<(&str, String), String> {
-            variable::render_template(&Template::new(v.to_string()), &input_map, wd)
-                .and_then(|s| Ok((*k, s)))
-                .map_err(|e| e.to_string())
+        .map(|(k, v)| -> Result<(&str, String), Error> {
+            variable::render_template(&parse_template(v)?, &input_map, wd).and_then(|s| Ok((*k, s)))
         })
-        .collect::<Result<Vec<(&str, String)>, String>>()?;
+        .collect::<Result<Vec<(&str, String)>, Error>>()?;
     for (k, v) in &overwrite_meta {
         input_map.insert(k, &v);
     }
@@ -218,7 +217,7 @@ pub fn exec_pipeline_on_inputfile(
     demo: bool,
     pipable: bool,
     print_extras: (&str, &str),
-) -> Result<(), String> {
+) -> Result<(), Error> {
     for (name, _, command) in commands {
         exec_on_inputfile(
             &command,
@@ -241,7 +240,7 @@ pub fn exec_pipeline(
     demo: bool,
     pipable: bool,
     print_extras: (&str, &str),
-) -> Result<(), String> {
+) -> Result<(), Error> {
     for (name, _, command) in commands {
         let cmd = variable::render_template(command, &inputs, wd)?;
         if !pipable {
@@ -252,16 +251,13 @@ pub fn exec_pipeline(
             eprintln!("⇒");
         }
         if !(demo || pipable) {
-            Exec::shell(cmd)
-                .cwd(&wd)
-                .join()
-                .map_err(|e| e.to_string())?;
+            Exec::shell(cmd).cwd(&wd).join()?;
         }
     }
     Ok(())
 }
 
-pub fn run_command(args: CliArgs) -> Result<(), String> {
+pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from(&args.path)?;
     let pipable = args.pipable
         || args.render.is_some()
@@ -271,8 +267,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         NumberRangeOptions::default()
             .with_list_sep(',')
             .with_range_sep('-')
-            .parse(&f)
-            .map_err(|s| s.to_string())?
+            .parse(&f)?
             .collect()
     } else {
         HashSet::new()
@@ -285,51 +280,49 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         )?
         .iter()
         .map(
-            |(_, command)| -> Result<(String, String, Template), String> {
-                match fs::read_to_string(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))
-                {
-                    Ok(s) => Ok((command.clone(), s.clone(), Template::new(s.trim()))),
-                    Err(e) => Err(e.to_string()),
-                }
+            |(_, command)| -> Result<(String, String, Template), Error> {
+                let s =
+                    fs::read_to_string(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))?;
+                parse_template(s.trim()).map(|t| (command.clone(), s.clone(), t))
             },
         )
-        .collect::<Result<Vec<(String, String, Template)>, String>>()
+        .collect::<Result<Vec<(String, String, Template)>, Error>>()
         .unwrap()
     } else if let Some(command) = args.command {
         let command_content =
-            fs::read_to_string(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))
-                .map_err(|e| e.to_string())?;
+            fs::read_to_string(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))?;
         vec![(
             command,
             command_content.clone(),
-            Template::new(command_content.trim()),
+            parse_template(command_content.trim())?,
         )]
     } else if let Some(ref filename) = args.render {
-        let file_content = fs::read_to_string(&filename).map_err(|e| e.to_string())?;
+        let file_content = fs::read_to_string(&filename)?;
         vec![(
             "-R-".to_string(),
             file_content.clone(),
-            Template::new(file_content.trim()),
+            parse_template(&file_content.trim())?,
         )]
-    } else if let Some(ref template) = args.render_template {
+    } else if let Some(template) = args.render_template {
         vec![(
             "-R-".to_string(),
             template.clone(),
-            Template::new(template.trim()),
+            parse_template(template.trim())?,
         )]
     } else if args.export.len() > 0 {
         vec![(
             "-E-".to_string(),
             args.export_format.clone(),
-            Template::new(export::body_template(&args.export, &args.export_format)),
+            parse_template(&export::body_template(&args.export, &args.export_format))?,
         )]
-    } else
-    // same as: if let Some(template) = args.command_template Since
-    // these 4 are in a group and there must be one of them, inforced
-    // by the argument parser
-    {
-        let template = args.command_template.unwrap();
-        vec![("-T-".to_string(), template.clone(), Template::new(template))]
+    } else if let Some(template) = args.command_template {
+        vec![(
+            "-T-".to_string(),
+            template.clone(),
+            parse_template(&template)?,
+        )]
+    } else {
+        panic!("Enforced by clap, this shouldn't happen");
     };
 
     let mut overwrite: HashMap<&str, &str> = HashMap::new();
@@ -346,14 +339,12 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
         for vars in &args.overwrite {
             let mut split_data = vars.split(":").map(|s| s.split("=")).flatten();
             overwrite.insert(
-                match split_data.next() {
-                    Some(d) => d,
-                    None => return Err(format!("Invalid Variable in overwrite: {}", vars)),
-                },
-                match split_data.next() {
-                    Some(d) => d,
-                    None => return Err(format!("Invalid Value in overwrite: {}", vars)),
-                },
+                split_data
+                    .next()
+                    .context(format!("Invalid Variable in overwrite: {}", vars))?,
+                split_data
+                    .next()
+                    .context(format!("Invalid Value in overwrite: {}", vars))?,
             );
             while let Some(d) = split_data.next() {
                 eprintln!("Unused data from --overwrite: {}", d);
@@ -383,7 +374,7 @@ pub fn run_command(args: CliArgs) -> Result<(), String> {
             .iter()
             .map(|b| variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, &b), None))
             .flatten_ok()
-            .collect::<Result<Vec<(usize, String)>, String>>()?
+            .collect::<Result<Vec<(usize, String)>, Error>>()?
             .into_iter()
             .enumerate()
             .map(|(i, (_, s))| (i + 1, s))

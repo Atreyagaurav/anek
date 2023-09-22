@@ -1,3 +1,4 @@
+use anyhow::Error;
 use clap::{Args, ValueHint};
 use std::path::PathBuf;
 
@@ -9,7 +10,7 @@ pub struct CliArgs {
     path: PathBuf,
 }
 
-pub fn cmd(args: CliArgs) -> Result<(), String> {
+pub fn cmd(args: CliArgs) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from(&args.path)?;
     println!("{:?}", anek_dir.root);
     Ok(())
