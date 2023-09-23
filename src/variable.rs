@@ -134,6 +134,7 @@ pub fn render_template(
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect(),
+        shell_commands: true,
     };
     templ.render(&op)
 }
