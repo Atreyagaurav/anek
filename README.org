@@ -14,6 +14,12 @@ As this is a program made to run different inputs for commands, please keep the 
 
 [[./images/video-thumb.png]]
 
+Following image shows the configurations of the provided =.anek= demo config, with the repository. You can see how pipelines, or batch files work, as well as the relationship with the inputs and the commands which is indirect with variables. You can only use inputs that have the variables used in a command (if not you can override them from terminal as well).
+
+You can use =anek graph= command to generate a DOT file of this graph, which you can render using [[https://graphviz.org/][graphviz commands like =dot= or =neato=]].
+
+[[./images/screenshot.png]]
+
 ** Simple Demo
 
 So make a directory, and get inside it,

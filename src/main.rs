@@ -8,6 +8,7 @@ mod completions;
 mod dtypes;
 mod edit;
 mod export;
+mod graph;
 mod list;
 mod new;
 mod report;
@@ -87,6 +88,8 @@ enum Action {
     Report(report::CliArgs),
     /// Show the current Anek Directory
     View(view::CliArgs),
+    /// Generate a graph in DOT syntax of the current anek variables
+    Graph(graph::CliArgs),
 }
 
 fn main() {
@@ -106,6 +109,7 @@ fn main() {
         }
         Action::Report(args) => report::save_report(args),
         Action::View(args) => view::cmd(args),
+        Action::Graph(args) => graph::print_dot(args),
     };
     let duration = start.elapsed();
 

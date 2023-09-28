@@ -328,6 +328,45 @@ fn update_from_stdin(file: &PathBuf) -> Result<(), Error> {
     Ok(())
 }
 
+pub fn compact_lines_from_anek_file(
+    filenames: &Vec<PathBuf>,
+) -> Result<Vec<(usize, String)>, anyhow::Error> {
+    let mut files: Vec<PathBuf> = Vec::new();
+    for filename in filenames {
+        if filename.is_dir() {
+            files.extend(list_filenames(&filename)?.iter().map(|f| filename.join(f)));
+        } else if !filename.exists() || filename.is_file() {
+            let dot_d = filename.with_file_name(format!(
+                "{}.d",
+                filename.file_name().unwrap().to_string_lossy()
+            ));
+            if dot_d.exists() {
+                if dot_d.is_dir() {
+                    files.extend(list_filenames(&dot_d)?.iter().map(|f| dot_d.join(f)));
+                } else if dot_d.is_file() {
+                    files.push(dot_d);
+                }
+            }
+            if filename.exists() {
+                files.push(filename.clone());
+            }
+        } else {
+            return Err(Error::msg(format!(
+                "Path {:?} is neither a directory nor a file",
+                filename
+            )));
+        }
+    }
+    let lines = files
+        .iter()
+        .map(|file| input_lines(&file, None))
+        .collect::<Result<Vec<Vec<(usize, String)>>, Error>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<(usize, String)>>();
+    Ok(lines)
+}
+
 pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from(&args.path)?;
     let mut vars: HashSet<&str> = HashSet::new();
