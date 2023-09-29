@@ -120,6 +120,17 @@ impl AnekDirectory {
         self.get_directory(dirtype).join(&filename)
     }
 
+    pub fn url_to_path(&self, dirtype: &AnekDirectoryType, filename: &str) -> String {
+        let mut file = self.get_file(dirtype, filename);
+        if !file.exists() {
+            let file_d = self.get_file(dirtype, &format!("{filename}.d"));
+            if file_d.exists() {
+                file = file_d;
+            }
+        }
+        format!("{}", file.to_str().unwrap())
+    }
+
     pub fn get_files<T: ToString>(
         &self,
         dirtype: &AnekDirectoryType,

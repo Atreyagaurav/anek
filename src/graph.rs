@@ -24,6 +24,9 @@ pub struct CliArgs {
     /// Cluster subtypes
     #[arg(short, long, action)]
     no_clusters: bool,
+    /// Add urls to the nodes to the corresponding file/dir
+    #[arg(short, long, action)]
+    urls: bool,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
     path: PathBuf,
 }
@@ -55,7 +58,11 @@ pub fn print_dot(args: CliArgs) -> Result<(), Error> {
         }
         let color = NODE_COLORS.get(dt.dir_name()).unwrap_or(&"gray");
         for file in variable::list_anek_filenames(&filepath.get_directory(dt))? {
-            println!("\"{}\" [color={}]", file, color);
+            print!("\"{}\" [color={}", file, color);
+            if args.urls {
+                print!(",URL=\"{}\"", filepath.url_to_path(&dt, &file));
+            }
+            println!("]");
         }
         if !args.no_clusters {
             println!("}}");
