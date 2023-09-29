@@ -81,17 +81,23 @@ pub fn list_options(args: CliArgs) -> Result<(), Error> {
     } else {
         None
     };
-    let anek_types: Vec<&AnekDirectoryType> = if let Some(ref at) = anek_type {
-        vec![at]
+    let anek_types: Vec<(&str, &AnekDirectoryType)> = if let Some(ref at) = anek_type {
+        vec![("", at)]
     } else {
-        anekdirtype_iter().collect()
+        anekdirtype_iter().map(|d| (d.dir_name(), d)).collect()
     };
     let mut paths: Vec<String> = anek_types
         .iter()
         .map(|adt| -> Result<Vec<String>, Error> {
-            list_func(&anek_dir.get_directory(adt)).map(|d| {
+            list_func(&anek_dir.get_directory(adt.1)).map(|d| {
                 d.iter()
-                    .map(|f| format!("{}/{}", adt.dir_name(), f))
+                    .map(|f| {
+                        if adt.0.is_empty() {
+                            f.to_string()
+                        } else {
+                            format!("{}/{}", adt.0, f)
+                        }
+                    })
                     .collect::<Vec<String>>()
             })
         })

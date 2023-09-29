@@ -319,6 +319,8 @@ fn update_from_stdin(file: &PathBuf) -> Result<(), Error> {
                     continue;
                 }
                 println!("{}: {} -> {}", k, variables[k], v);
+            } else {
+                println!("{}: {}", k, v);
             }
             variables.insert(k.to_string(), v.to_string());
             modified = true;
@@ -327,8 +329,8 @@ fn update_from_stdin(file: &PathBuf) -> Result<(), Error> {
     if modified {
         let fp = std::fs::File::create(&file)?;
         let mut writer = BufWriter::new(fp);
-        for (k, v) in variables {
-            writeln!(writer, "{}={}", k, v)?;
+        for k in variables.keys().sorted() {
+            writeln!(writer, "{}={}", k, variables[k])?;
         }
         eprintln!("Updated {:?}", file)
     }
