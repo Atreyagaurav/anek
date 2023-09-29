@@ -11,13 +11,19 @@ use crate::variable;
 pub struct CliArgs {
     /// Remove orphaned items. TODO
     #[arg(short, long, action)]
-    remove_orphans: bool,
+    omit_orphans: bool,
     /// Only include these pipeline
     #[arg(short, long, value_delimiter = ',')]
     pipelines: Vec<String>,
     /// Only include these batch files
     #[arg(short, long, value_delimiter = ',')]
     batches: Vec<String>,
+    /// Nodes at top
+    #[arg(short, long, action)]
+    raise_nodes: bool,
+    /// Cluster subtypes
+    #[arg(short, long, action)]
+    no_clusters: bool,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
     path: PathBuf,
 }
@@ -38,15 +44,22 @@ pub fn print_dot(args: CliArgs) -> Result<(), Error> {
     println!("rank=LR;");
     println!("overlap=prism; overlap_scaling=-3.5;");
     println!("node [penwidth=2, shape=rectangle];");
+    if args.raise_nodes {
+        println!("outputorder=edgesfirst");
+    }
 
     for dt in anekdirtype_iter() {
-        println!("subgraph cluster_{} {{", dt.dir_name());
-        println!("label = {};", dt.dir_name());
+        if !args.no_clusters {
+            println!("subgraph cluster_{} {{", dt.dir_name());
+            println!("label = {};", dt.dir_name());
+        }
         let color = NODE_COLORS.get(dt.dir_name()).unwrap_or(&"gray");
         for file in variable::list_anek_filenames(&filepath.get_directory(dt))? {
             println!("\"{}\" [color={}]", file, color);
         }
-        println!("}}");
+        if !args.no_clusters {
+            println!("}}");
+        }
     }
     // pipelines as sequence of commands
     let dir = filepath.get_directory(&AnekDirectoryType::Pipelines);
