@@ -1,6 +1,6 @@
 [package]
 name = "anek"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 authors = ["Gaurav Atreya"]
 description = "simple tool to run command templates"

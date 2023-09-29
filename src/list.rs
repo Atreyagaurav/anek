@@ -1,7 +1,7 @@
 use anyhow::Error;
 use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use crate::dtypes::AnekDirectoryType;
 use crate::{
@@ -81,43 +81,36 @@ pub fn list_options(args: CliArgs) -> Result<(), Error> {
     } else {
         None
     };
-    let paths = if let Some(ref at) = anek_type {
-        let lst = list_func(&anek_dir.get_directory(&at))?;
-        if args.filter.is_empty() {
-            lst
-        } else {
-            lst.iter()
-                .filter(|f| {
-                    let lines = variable::input_lines(&anek_dir.get_file(&at, &f), None).unwrap();
-                    let mut input_map: HashMap<&str, &str> = HashMap::new();
-                    variable::read_inputs(&lines, &mut input_map).unwrap();
-                    args.filter.iter().all(|f| {
-                        if let Some(key) = input_map.get(f.as_str()) {
-                            !key.is_empty()
-                        } else {
-                            false
-                        }
-                    })
-                })
-                .map(|s| s.to_string())
-                .collect()
-        }
+    let anek_types: Vec<&AnekDirectoryType> = if let Some(ref at) = anek_type {
+        vec![at]
     } else {
-        let all_dirs = anekdirtype_iter()
-            .map(|adt| list_func(&anek_dir.get_directory(adt)))
-            .collect::<Result<Vec<Vec<String>>, Error>>()?;
-        anekdirtype_iter()
-            .zip(all_dirs)
-            .map(|(adt, fnames)| {
-                fnames
-                    .iter()
+        anekdirtype_iter().collect()
+    };
+    let mut paths: Vec<String> = anek_types
+        .iter()
+        .map(|adt| -> Result<Vec<String>, Error> {
+            list_func(&anek_dir.get_directory(adt)).map(|d| {
+                d.iter()
                     .map(|f| format!("{}/{}", adt.dir_name(), f))
                     .collect::<Vec<String>>()
             })
-            .flatten()
-            .collect()
-    };
-
+        })
+        .collect::<Result<Vec<Vec<String>>, Error>>()?
+        .into_iter()
+        .flatten()
+        .collect();
+    if !args.filter.is_empty() {
+        paths = paths
+            .into_iter()
+            .filter_map(|p| {
+                if args.filter.iter().all(|fs| p.contains(fs)) {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .collect();
+    }
     for p in paths {
         match p.rsplit_once("/") {
             Some((dir, file)) => println!("{}/{}", dir.truecolor(100, 100, 100), file),

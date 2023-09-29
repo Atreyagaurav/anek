@@ -2,6 +2,7 @@ use anyhow::Error;
 use core::slice::Iter;
 use std::{fs::create_dir, path::PathBuf};
 
+#[derive(Clone)]
 pub enum AnekDirectoryType {
     Variables,
     Inputs,
