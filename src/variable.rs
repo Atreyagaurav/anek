@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_dir, File};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
-use string_template_plus::{parse_template, Render, RenderOptions, Template, TemplatePart};
+use string_template_plus::{Render, RenderOptions, Template, TemplatePart};
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
 
@@ -144,8 +144,9 @@ pub fn read_inputs_set_from_commands<'a>(
     input_map: &mut HashSet<&'a str>,
 ) -> Result<(), Error> {
     for (_, line) in enum_lines {
-        let templ = parse_template(line)?;
+        let templ = Template::parse_template(line)?;
         templ
+            .parts()
             .into_iter()
             .filter_map(|p| {
                 if let TemplatePart::Var(v, _) = p {
@@ -155,7 +156,7 @@ pub fn read_inputs_set_from_commands<'a>(
                 }
             })
             .for_each(|v| {
-                let ind = line.find(&v).expect("Variable should be in the template");
+                let ind = line.find(v).expect("Variable should be in the template");
                 input_map.insert(&line[ind..(ind + v.len())]);
             });
     }

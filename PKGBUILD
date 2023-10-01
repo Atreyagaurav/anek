@@ -1,6 +1,6 @@
 # Maintainer: Gaurav Atreya <allmanpride@gmail.com>
 pkgname=anek
-pkgver=0.5.2
+pkgver=0.5.3
 pkgrel=1
 pkgdesc="Tool to run commands based on a templates"
 arch=('x86_64')

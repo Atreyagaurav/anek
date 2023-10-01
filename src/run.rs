@@ -6,7 +6,7 @@ use number_range::NumberRangeOptions;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
-use string_template_plus::{parse_template, Template};
+use string_template_plus::Template;
 use subprocess::Exec;
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
@@ -148,7 +148,8 @@ pub fn exec_on_inputfile(
     let overwrite_meta: Vec<(&str, String)> = overwrite
         .iter()
         .map(|(k, v)| -> Result<(&str, String), Error> {
-            variable::render_template(&parse_template(v)?, &input_map, wd).and_then(|s| Ok((*k, s)))
+            variable::render_template(&Template::parse_template(v)?, &input_map, wd)
+                .and_then(|s| Ok((*k, s)))
         })
         .collect::<Result<Vec<(&str, String)>, Error>>()?;
     for (k, v) in &overwrite_meta {
@@ -243,7 +244,7 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
             |(_, command)| -> Result<(String, String, Template), Error> {
                 let s =
                     fs::read_to_string(&anek_dir.get_file(&AnekDirectoryType::Commands, &command))?;
-                parse_template(s.trim()).map(|t| (command.clone(), s.clone(), t))
+                Template::parse_template(s.trim()).map(|t| (command.clone(), s.clone(), t))
             },
         )
         .collect::<Result<Vec<(String, String, Template)>, Error>>()
@@ -254,32 +255,32 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
         vec![(
             command,
             command_content.clone(),
-            parse_template(command_content.trim())?,
+            Template::parse_template(command_content.trim())?,
         )]
     } else if let Some(ref filename) = args.render {
         let file_content = fs::read_to_string(&filename)?;
         vec![(
             "-R-".to_string(),
             file_content.clone(),
-            parse_template(&file_content.trim())?,
+            Template::parse_template(&file_content.trim())?,
         )]
     } else if let Some(template) = args.render_template {
         vec![(
             "-R-".to_string(),
             template.clone(),
-            parse_template(template.trim())?,
+            Template::parse_template(template.trim())?,
         )]
     } else if args.export.len() > 0 {
         vec![(
             "-E-".to_string(),
             args.export_format.clone(),
-            parse_template(&export::body_template(&args.export, &args.export_format))?,
+            Template::parse_template(&export::body_template(&args.export, &args.export_format))?,
         )]
     } else if let Some(template) = args.command_template {
         vec![(
             "-T-".to_string(),
             template.clone(),
-            parse_template(&template)?,
+            Template::parse_template(&template)?,
         )]
     } else {
         panic!("Enforced by clap, this shouldn't happen");

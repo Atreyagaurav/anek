@@ -13,6 +13,7 @@ mod list;
 mod new;
 mod report;
 mod run;
+mod show;
 mod variable;
 mod view;
 
@@ -88,6 +89,8 @@ enum Action {
     Report(report::CliArgs),
     /// Show the current Anek Directory
     View(view::CliArgs),
+    /// Show the Anek file
+    Show(show::CliArgs),
     /// Generate a graph in DOT syntax of the current anek variables
     Graph(graph::CliArgs),
 }
@@ -109,6 +112,7 @@ fn main() {
         }
         Action::Report(args) => report::save_report(args),
         Action::View(args) => view::cmd(args),
+        Action::Show(args) => show::show_file(args),
         Action::Graph(args) => graph::print_dot(args),
     };
     let duration = start.elapsed();

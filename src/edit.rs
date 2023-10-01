@@ -8,9 +8,6 @@ use crate::dtypes::AnekDirectory;
 
 #[derive(Args)]
 pub struct CliArgs {
-    /// Show the contents of a file inside .anek
-    #[arg(short, long)]
-    echo: bool,
     /// The file inside .anek
     ///
     /// Use relative path starting from .anek, the possible paths are
@@ -23,13 +20,8 @@ pub struct CliArgs {
 
 pub fn edit_file(args: CliArgs) -> Result<(), Error> {
     let filepath = AnekDirectory::from(&args.path)?.root.join(args.anek_file);
-    if args.echo {
-        let contents = std::fs::read_to_string(filepath)?;
-        print!("{}", contents);
-    } else {
-        let command = format!("{} {:?}", env::var("EDITOR").unwrap(), filepath);
-        println!("{}", command);
-        Exec::shell(command).join()?;
-    }
+    let command = format!("{} {:?}", env::var("EDITOR").unwrap(), filepath);
+    println!("{}", command);
+    Exec::shell(command).join()?;
     Ok(())
 }
