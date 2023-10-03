@@ -42,9 +42,15 @@ pub struct CliArgs {
     info: Option<String>,
     /// Update variables read from stdin in the given file
     ///
-    /// Use it for generated files as it'll remove the comments
-    #[arg(short, long, value_hint = ValueHint::FilePath)]
-    update: Option<PathBuf>,
+    /// Use it for generated files as it'll remove the comments. You
+    /// can make a syntax "filename::variable=value" work, by using a
+    /// template string instead of a file. The template can have
+    /// placeholders {1},{2}, etc for the part that are separated by
+    /// `::` and are before the `variable=value` pair. In the example
+    /// "filename::variable=value", the {1} will be replaced with
+    /// filename.
+    #[arg(short, long, value_hint = ValueHint::FilePath, value_parser=Template::parse_template)]
+    update: Option<Template>,
     #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
     path: PathBuf,
 }
@@ -286,54 +292,76 @@ fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), 
     Ok(())
 }
 
-fn update_from_stdin(file: &PathBuf) -> Result<(), Error> {
-    let mut variables: HashMap<String, String> = if !file.exists() {
-        HashMap::new()
-    } else if file.is_file() {
-        let lines = input_lines(&file, None)?;
-        let mut vars: HashMap<&str, &str> = HashMap::new();
-        read_inputs(&lines, &mut vars)?;
-        vars.iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect()
-    } else {
-        return Err(Error::msg("File is not an anek file"));
-    };
+fn update_file(file_s: &str, var_line: &str) -> Result<(), Error> {
+    let file = PathBuf::from(file_s);
+    if let Some((k, v)) = var_line.split_once("=") {
+        let mut variables: HashMap<String, String> = if !file.exists() {
+            HashMap::new()
+        } else if file.is_file() {
+            let lines = input_lines(&file, None)?;
+            let mut vars: HashMap<&str, &str> = HashMap::new();
+            read_inputs(&lines, &mut vars)?;
+            vars.iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect()
+        } else {
+            return Err(Error::msg("File is not an anek file"));
+        };
 
-    for (k, v) in variables.iter() {
-        eprintln!("{}={}", k, v);
+        let (k, v) = (k.trim(), v.trim());
+        if variables.contains_key(k) {
+            if variables[k] == v {
+                return Ok(());
+            }
+            println!("{}:: {}: {} -> {}", file_s, k, variables[k], v);
+        } else {
+            println!("{}:: {}: {}", file_s, k, v);
+        }
+        variables.insert(k.to_string(), v.to_string());
+        let fp = std::fs::File::create(&file)?;
+        let mut writer = BufWriter::new(fp);
+        for k in variables.keys().sorted() {
+            writeln!(writer, "{}={}", k, variables[k])?;
+        }
     }
+
+    Ok(())
+}
+
+fn update_from_stdin(file_templ: &Template) -> Result<(), Error> {
     eprintln!("Waiting for input...");
 
     let mut input = String::new();
-    let mut modified = false;
+    let mut filename = String::new();
+    let file_notempl = file_templ.lit();
+    let mut filerenderops = RenderOptions::default();
     loop {
         input.clear();
         let n = io::stdin().read_line(&mut input)?;
         if n == 0 {
             break;
         }
-        if let Some((k, v)) = input.split_once("=") {
-            let (k, v) = (k.trim(), v.trim());
-            if variables.contains_key(k) {
-                if variables[k] == v {
-                    continue;
-                }
-                println!("{}: {} -> {}", k, variables[k], v);
-            } else {
-                println!("{}: {}", k, v);
+        if let Some((fstr, vars)) = input.rsplit_once("::") {
+            if file_notempl.is_some() {
+                return Err(Error::msg("The file provided is not a template"));
             }
-            variables.insert(k.to_string(), v.to_string());
-            modified = true;
+            filerenderops.variables.clear();
+            fstr.split("::").enumerate().for_each(|(i, v)| {
+                filerenderops
+                    .variables
+                    .insert((i + 1).to_string(), v.to_string());
+            });
+            filename = file_templ.render(&filerenderops)?;
+            update_file(&filename, vars)?;
+        } else {
+            if let Some(file) = &file_notempl {
+                update_file(file, &input)?;
+            } else if !filename.is_empty() {
+                update_file(&filename, &input)?;
+            } else {
+                return Err(Error::msg("No arguments for the file template"));
+            }
         }
-    }
-    if modified {
-        let fp = std::fs::File::create(&file)?;
-        let mut writer = BufWriter::new(fp);
-        for k in variables.keys().sorted() {
-            writeln!(writer, "{}={}", k, variables[k])?;
-        }
-        eprintln!("Updated {:?}", file)
     }
     Ok(())
 }

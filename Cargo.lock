@@ -28,7 +28,7 @@ dependencies = [
 
 [[package]]
 name = "anek"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -595,9 +595,9 @@ checksum = "1792db035ce95be60c3f8853017b3999209281c24e2ba5bc8e59bf97a0c590c1"
 
 [[package]]
 name = "string-template-plus"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ad6ca3bcd7829de59dcd48b646644eadc1c8664a8a8cdf9a4dca247ecfc64b0"
+checksum = "c927645366a7ac82580b6009f71c37fe619f18fd70e455cb5121b820d40ee822"
 dependencies = [
  "anyhow",
  "chrono",
