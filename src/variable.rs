@@ -145,6 +145,15 @@ pub fn render_template(
     templ.render(&op)
 }
 
+fn variables(part: &TemplatePart) -> Vec<&str> {
+    match part {
+        TemplatePart::Var(v, _) => vec![v.as_str()],
+        TemplatePart::Any(any) => any.iter().map(variables).flatten().collect(),
+        TemplatePart::Cmd(cmd) => cmd.iter().map(variables).flatten().collect(),
+        _ => vec![],
+    }
+}
+
 pub fn read_inputs_set_from_commands<'a>(
     enum_lines: &'a Vec<(usize, String)>,
     input_map: &mut HashSet<&'a str>,
@@ -154,13 +163,8 @@ pub fn read_inputs_set_from_commands<'a>(
         templ
             .parts()
             .into_iter()
-            .filter_map(|p| {
-                if let TemplatePart::Var(v, _) = p {
-                    Some(v)
-                } else {
-                    None
-                }
-            })
+            .map(variables)
+            .flatten()
             .for_each(|v| {
                 let ind = line.find(v).expect("Variable should be in the template");
                 input_map.insert(&line[ind..(ind + v.len())]);
