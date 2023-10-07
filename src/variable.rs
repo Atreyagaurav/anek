@@ -145,7 +145,7 @@ pub fn render_template(
     templ.render(&op)
 }
 
-fn variables(part: &TemplatePart) -> Vec<&str> {
+pub fn variables(part: &TemplatePart) -> Vec<&str> {
     match part {
         TemplatePart::Var(v, _) => vec![v.as_str()],
         TemplatePart::Any(any) => any.iter().map(variables).flatten().collect(),

@@ -11,7 +11,7 @@ use subprocess::Exec;
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
 use crate::export;
-use crate::variable;
+use crate::variable::{self, variables};
 
 #[derive(Args)]
 #[command(group = ArgGroup::new("action").required(true).multiple(false))]
@@ -386,9 +386,14 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
             .into_iter()
             // filter only the inputs used in the command file
             .filter(|inps| {
-                pipeline_templates
-                    .iter()
-                    .any(|(_, temp, _)| temp.contains(&format!("{{{}}}", inps[0].0)))
+                pipeline_templates.iter().any(|(_, _, temp)| {
+                    temp.parts()
+                        .iter()
+                        .map(|p| variables(p))
+                        .flatten()
+                        .collect::<Vec<&str>>()
+                        .contains(&inps[0].0.as_str())
+                })
             })
             .map(|inps| {
                 if let Some(value) = overwrite.get(inps[0].0.as_str()) {
