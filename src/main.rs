@@ -11,8 +11,10 @@ mod export;
 mod graph;
 mod list;
 mod new;
+mod render;
 mod report;
 mod run;
+mod run_utils;
 mod show;
 mod variable;
 mod view;
@@ -74,6 +76,10 @@ enum Action {
     ///
     /// Main command to run/print the commands or pipelines.
     Run(run::CliArgs),
+    /// render the file
+    ///
+    /// Main command print the commands or pipelines.
+    Render(render::CliArgs),
     /// Print completions for different shells.
     ///
     /// If you use bash, use the edited one included in the repo.

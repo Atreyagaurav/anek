@@ -1,6 +1,7 @@
 use anyhow::Error;
 use core::slice::Iter;
-use std::{fs::create_dir, path::PathBuf};
+use std::{fs, path::PathBuf};
+use string_template_plus::Template;
 
 #[derive(Clone)]
 pub enum AnekDirectoryType {
@@ -70,6 +71,12 @@ pub struct AnekDirectory {
     pub root: PathBuf,
 }
 
+pub struct Command {
+    name: String,
+    cmd: String,
+    templ: Template,
+}
+
 impl AnekDirectory {
     pub fn from(wd: &PathBuf) -> Result<Self, Error> {
         let root = wd.join(".anek");
@@ -104,10 +111,10 @@ impl AnekDirectory {
                 )))
             }
         } else {
-            create_dir(&root)?;
+            fs::create_dir(&root)?;
             let anek = AnekDirectory::from(&wd)?;
             for adt in anekdirtype_iter() {
-                create_dir(anek.get_directory(adt))?;
+                fs::create_dir(anek.get_directory(adt))?;
             }
             Ok(anek)
         }
@@ -141,6 +148,16 @@ impl AnekDirectory {
             .iter()
             .map(|f| self.get_file(&dirtype, &f.to_string()))
             .collect()
+    }
+
+    pub fn command(&self, cmd: &str) -> Result<Command, Error> {
+        let s = fs::read_to_string(self.get_file(&AnekDirectoryType::Commands, &cmd))?;
+        let templ = Template::parse_template(s.trim())?;
+        Ok(Command {
+            name: cmd.to_string(),
+            cmd: s,
+            templ,
+        })
     }
 }
 
