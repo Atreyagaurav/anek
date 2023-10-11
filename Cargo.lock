@@ -37,7 +37,6 @@ dependencies = [
  "colored",
  "itertools",
  "lazy_static",
- "new_string_template",
  "number_range",
  "regex",
  "string-template-plus",
@@ -424,16 +423,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f232d6ef707e1956a43342693d2a31e72989554d58299d7a88738cc95b0d35c"
 
 [[package]]
-name = "new_string_template"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7359c5bee6fe9218ccd4988120a23dc79d291e95486756969112d45efdc97d1"
-dependencies = [
- "lazy_static",
- "regex",
-]
-
-[[package]]
 name = "num"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -595,9 +584,9 @@ checksum = "1792db035ce95be60c3f8853017b3999209281c24e2ba5bc8e59bf97a0c590c1"
 
 [[package]]
 name = "string-template-plus"
-version = "0.3.0"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ad6ca3bcd7829de59dcd48b646644eadc1c8664a8a8cdf9a4dca247ecfc64b0"
+checksum = "c0ed815bed38f42d99244469bee9cbc65404de205107ca351f3fa602495af1cb"
 dependencies = [
  "anyhow",
  "chrono",

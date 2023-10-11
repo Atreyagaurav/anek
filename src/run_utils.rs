@@ -139,12 +139,71 @@ pub fn overwrite_vars(
     Ok(overwrite)
 }
 
-pub fn inputs(anek_dir: &AnekDirectory, args: &Inputs) -> Result<Vec<CommandInputs>, Error> {
+pub fn inputs(
+    anek_dir: &AnekDirectory,
+    args: &Inputs,
+    variables: &HashSet<&str>,
+) -> Result<Vec<CommandInputs>, Error> {
     if !args.on().batch.is_empty() {
         input_files(anek_dir, &args.on().batch, &args.on().select_inputs)
+    } else if let Some(l) = &args.on().r#loop {
+        let overwrite = overwrite_vars(&args, &command_args(&args))?;
+        loop_inputs(
+            anek_dir,
+            &l,
+            &args.on().select_inputs,
+            &variables,
+            &overwrite,
+        )
     } else {
         Ok(vec![anek_dir.inputs(1, &args.on().input).read_files()?])
     }
+}
+
+pub fn loop_inputs(
+    anek_dir: &AnekDirectory,
+    loop_file: &str,
+    selection: &HashSet<usize>,
+    variables: &HashSet<&str>,
+    overwrite: &HashMap<String, String>,
+) -> Result<Vec<CommandInputs>, Error> {
+    let loop_dir = anek_dir
+        .get_directory(&AnekDirectoryType::Loops)
+        .join(format!("{loop_file}.d"));
+    let loop_vars = variable::loop_inputs(&loop_dir)?;
+
+    let permutations = loop_vars
+        .into_iter()
+        // filter only the inputs used in the command file
+        .filter(|inps| variables.contains(&inps[0].0.as_str()))
+        .map(|inps| {
+            if let Some(value) = overwrite.get(inps[0].0.as_str()) {
+                // TODO, make overwrite metavariables work with loop too.
+                vec![(inps[0].0.clone(), 0, value.to_string())]
+            } else {
+                inps.to_vec()
+            }
+        })
+        .multi_cartesian_product();
+    let mut cmd_inputs = Vec::new();
+    for (li, inputs) in permutations.enumerate() {
+        let loop_index = li + 1;
+
+        if selection.len() > 0 && !selection.contains(&loop_index) {
+            continue;
+        }
+        let mut variables: HashMap<String, String> = HashMap::new();
+        variables.insert("LOOP_INDEX".to_string(), loop_index.to_string());
+        let mut name = String::new();
+        for (var, i, val) in &inputs {
+            variables.insert(var.to_string(), val.to_string());
+            name.push_str(&format!("{} [{}]={}; ", &var, i, &val));
+        }
+
+        let inp = CommandInputs::from_variables(loop_index, name, variables);
+        cmd_inputs.push(inp);
+    }
+    Ok(cmd_inputs)
 }
 
 pub fn input_files(
@@ -175,25 +234,6 @@ pub fn input_files(
         .collect()
 }
 
-pub fn exec_on_input(
-    cmd: &Command,
-    input: &CommandInputs,
-    wd: &PathBuf,
-    overwrite: &HashMap<String, String>,
-    demo: bool,
-    pipable: bool,
-    print_extras: (&str, &str),
-) -> Result<(), Error> {
-    let variables = variables_from_input(input, wd, overwrite)?;
-    if pipable {
-        let command = cmd.render(variables, wd.to_path_buf())?;
-        println!("{}{}{}", print_extras.0, command.trim(), print_extras.1);
-    } else {
-        cmd.run(&variables, wd, demo, !pipable)?;
-    }
-    Ok(())
-}
-
 pub fn variables_from_input(
     input: &CommandInputs,
     wd: &PathBuf,
@@ -218,38 +258,4 @@ pub fn variables_from_input(
         input_map.insert(k.to_string(), v);
     }
     Ok(input_map)
-}
-
-pub fn exec_pipeline_on_input(
-    commands: &Vec<Command>,
-    input: &CommandInputs,
-    wd: &PathBuf,
-    overwrite: &HashMap<String, String>,
-    demo: bool,
-    pipable: bool,
-    print_extras: (&str, &str),
-) -> Result<(), Error> {
-    for command in commands {
-        exec_on_input(command, input, &wd, overwrite, demo, pipable, print_extras)?;
-    }
-    Ok(())
-}
-
-pub fn exec_pipeline(
-    commands: &Vec<Command>,
-    wd: &PathBuf,
-    inputs: &HashMap<String, String>,
-    demo: bool,
-    pipable: bool,
-    print_extras: (&str, &str),
-) -> Result<(), Error> {
-    for command in commands {
-        if pipable {
-            let cmd = command.render(inputs.clone(), wd.to_path_buf())?;
-            command.print(&format!("{}{}{}", print_extras.0, cmd, print_extras.1));
-        } else {
-            command.run(inputs, wd, demo, !pipable)?
-        }
-    }
-    Ok(())
 }

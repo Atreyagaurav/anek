@@ -120,6 +120,8 @@ impl Command {
         let cmd = self.render(variables.clone(), wd.to_path_buf())?;
         if print {
             self.print(&cmd);
+        } else if demo {
+            println!("{}", cmd);
         }
         if !demo {
             Exec::shell(cmd).cwd(&wd).join()?;
@@ -142,6 +144,15 @@ impl CommandInputs {
             name,
             files,
             variables: HashMap::new(),
+        }
+    }
+
+    pub fn from_variables(index: usize, name: String, variables: HashMap<String, String>) -> Self {
+        Self {
+            index,
+            name,
+            files: vec![],
+            variables,
         }
     }
 

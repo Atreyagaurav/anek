@@ -1,6 +1,6 @@
 use anyhow::Error;
 use clap::{Args, ValueHint};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use string_template_plus::{Render, RenderOptions, Template};
@@ -45,7 +45,7 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let cmd_args = run_utils::command_args(&args.inputs);
     let overwrite: HashMap<String, String> = run_utils::overwrite_vars(&args.inputs, &cmd_args)?;
 
-    let input_files = run_utils::inputs(&anek_dir, &args.inputs)?;
+    let input_files = run_utils::inputs(&anek_dir, &args.inputs, &HashSet::new())?;
     let total = input_files.len();
     for (i, input) in input_files.iter().enumerate() {
         input.eprint_job(i + 1, total);
