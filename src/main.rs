@@ -72,6 +72,7 @@ enum Action {
     /// All the valid paths can be listed using ~anek list~.
     /// Completion will help you there by proving them.
     Edit(edit::CliArgs),
+    Export(export::CliArgs),
     /// run the file
     ///
     /// Main command to run/print the commands or pipelines.
@@ -111,6 +112,7 @@ fn main() {
         Action::Variable(args) => variable::run_command(args),
         Action::List(args) => list::list_options(args),
         Action::Edit(args) => edit::edit_file(args),
+        Action::Export(args) => export::run_command(args),
         Action::Run(args) => run::run_command(args),
         Action::Render(args) => render::run_command(args),
         Action::Completions(args) => {
