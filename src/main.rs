@@ -112,6 +112,7 @@ fn main() {
         Action::List(args) => list::list_options(args),
         Action::Edit(args) => edit::edit_file(args),
         Action::Run(args) => run::run_command(args),
+        Action::Render(args) => render::run_command(args),
         Action::Completions(args) => {
             let mut clap_app = Cli::command();
             completions::print_completions(args, &mut clap_app)

@@ -1,17 +1,29 @@
 use anyhow::{Context, Error};
-use clap::{ArgGroup, Args, ValueHint};
-use colored::Colorize;
+use clap::{ArgGroup, Args, Subcommand, ValueHint};
 use itertools::Itertools;
 use number_range::NumberRangeOptions;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use string_template_plus::Template;
-use subprocess::Exec;
+use string_template_plus::{Render, RenderOptions, Template};
 
-use crate::dtypes::{AnekDirectory, AnekDirectoryType, Command};
+use crate::dtypes::{AnekDirectory, AnekDirectoryType, Command, CommandInputs};
 use crate::variable;
 
-#[derive(Args)]
+#[derive(Subcommand)]
+pub enum Inputs {
+    /// Use these inputs
+    On(InputsArgs),
+}
+
+impl Inputs {
+    pub fn on(&self) -> &InputsArgs {
+        match self {
+            Inputs::On(a) => a,
+        }
+    }
+}
+
+#[derive(Args, Clone)]
 #[command(group = ArgGroup::new("variables").required(false).multiple(false))]
 pub struct InputsArgs {
     /// Select subset to run, works in batch and loop only
@@ -20,7 +32,7 @@ pub struct InputsArgs {
     /// select a subset of them to run. The selection string needs to
     /// be comma separated values of possitive integers, you can have
     /// range of values like: 1-5 to represent values from 1 to 5.
-    #[arg(short, long, value_hint = ValueHint::Other, value_parser=filter_index)]
+    #[arg(short, long, default_value="", value_hint = ValueHint::Other, value_parser=filter_index)]
     select_inputs: HashSet<usize>,
     /// Run from batch
     ///
@@ -50,20 +62,6 @@ pub struct InputsArgs {
     /// aforementioned way.
     #[arg(short, long, group="variables", value_delimiter=',', value_hint = ValueHint::Other)]
     input: Vec<String>,
-    /// Print commands only so you can pipe it, assumes --demo
-    ///
-    /// This one will only print the commands without executing them
-    /// or printing any other informations. You can pipe it to bash or
-    /// gnu parallel or any other commands to run it, or process it
-    /// further.
-    #[arg(short = 'P', long)]
-    pipable: bool,
-    /// Demo only, don't run the actual command
-    ///
-    /// Does everything but skips running the command, you can make
-    /// sure it's what you want to run before running it.
-    #[arg(short, long)]
-    demo: bool,
     /// Overwrite input variables
     ///
     /// Provide variables to be overwritten in the input config. If
@@ -76,8 +74,6 @@ pub struct InputsArgs {
     /// then it'll no longer use any of those values to loop.
     #[arg(short, long, value_delimiter=',', value_hint = ValueHint::Other)]
     overwrite: Vec<String>,
-    #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
-    path: PathBuf,
     /// Arguments to pass to the action template as ARG<N>
     ///
     /// The arguments passed here can be accessed as ARG1,ARG2,etc in
@@ -104,21 +100,23 @@ pub fn cmd_from_pipeline(anek_dir: &AnekDirectory, pipeline: &str) -> Result<Vec
     .collect()
 }
 
-pub fn command_args(args: &InputsArgs) -> Vec<(String, &str)> {
+pub fn command_args(args: &Inputs) -> Vec<(String, String)> {
+    let args = args.on();
     args.command_args
         .iter()
         .enumerate()
-        .map(|(i, a)| (format!("ARG{}", i + 1), a.as_str()))
+        .map(|(i, a)| (format!("ARG{}", i + 1), a.to_string()))
         .collect()
 }
 
-pub fn overwrite_vars<'a>(
-    args: &'a InputsArgs,
-    command_args: &'a Vec<(String, &str)>,
-) -> Result<HashMap<&'a str, &'a str>, Error> {
-    let mut overwrite: HashMap<&str, &str> = HashMap::new();
+pub fn overwrite_vars(
+    args: &Inputs,
+    command_args: &Vec<(String, String)>,
+) -> Result<HashMap<String, String>, Error> {
+    let args = args.on();
+    let mut overwrite: HashMap<String, String> = HashMap::new();
     command_args.iter().for_each(|(k, v)| {
-        overwrite.insert(k.as_str(), *v);
+        overwrite.insert(k.to_string(), v.to_string());
     });
     if args.overwrite.len() > 0 {
         for vars in &args.overwrite {
@@ -126,10 +124,12 @@ pub fn overwrite_vars<'a>(
             overwrite.insert(
                 split_data
                     .next()
-                    .context(format!("Invalid Variable in overwrite: {}", vars))?,
+                    .context(format!("Invalid Variable in overwrite: {}", vars))?
+                    .to_string(),
                 split_data
                     .next()
-                    .context(format!("Invalid Value in overwrite: {}", vars))?,
+                    .context(format!("Invalid Value in overwrite: {}", vars))?
+                    .to_string(),
             );
             while let Some(d) = split_data.next() {
                 eprintln!("Unused data from --overwrite: {}", d);
@@ -139,148 +139,116 @@ pub fn overwrite_vars<'a>(
     Ok(overwrite)
 }
 
-pub fn input_files(
-    anek_dir: &AnekDirectory,
-    args: &InputsArgs,
-    filter_index: &HashSet<usize>,
-) -> Result<Vec<Vec<PathBuf>>, Error> {
-    if args.input.len() > 0 {
-        Ok(vec![
-            anek_dir.get_files(&AnekDirectoryType::Inputs, &args.input)
-        ])
-    } else if args.batch.len() > 0 {
-        let batch_lines: Vec<(usize, String)> = args
-            .batch
-            .iter()
-            .map(|b| variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, &b), None))
-            .flatten_ok()
-            .collect::<Result<Vec<(usize, String)>, Error>>()?
-            .into_iter()
-            .enumerate()
-            .map(|(i, (_, s))| (i + 1, s))
-            .filter(|f| {
-                if filter_index.len() == 0 {
-                    true
-                } else {
-                    filter_index.contains(&f.0)
-                }
-            })
-            .collect();
-        let mut current = 0;
-        let total = batch_lines.len();
-        batch_lines
-            .iter()
-            .map(|(i, line)| {
-                current += 1;
-                if !args.pipable {
-                    eprintln!(
-                        "{} {} [{} of {}]: {}",
-                        "Job".bright_purple().bold(),
-                        i,
-                        current,
-                        total,
-                        line
-                    );
-                }
-                let files: Vec<&str> = line.split(",").collect();
-                Ok(anek_dir.get_files(&AnekDirectoryType::Inputs, &files))
-            })
-            .collect()
+pub fn inputs(anek_dir: &AnekDirectory, args: &Inputs) -> Result<Vec<CommandInputs>, Error> {
+    if !args.on().batch.is_empty() {
+        input_files(anek_dir, &args.on().batch, &args.on().select_inputs)
     } else {
-        Ok(vec![])
+        Ok(vec![anek_dir.inputs(1, &args.on().input).read_files()?])
     }
 }
 
-pub fn exec_on_inputfile(
-    cmd: &Template,
-    filenames: &Vec<PathBuf>,
+pub fn input_files(
+    anek_dir: &AnekDirectory,
+    batch_files: &Vec<String>,
+    selection: &HashSet<usize>,
+) -> Result<Vec<CommandInputs>, Error> {
+    batch_files
+        .iter()
+        .map(|b| variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, &b), None))
+        .flatten_ok()
+        .collect::<Result<Vec<(usize, String)>, Error>>()?
+        .into_iter()
+        .enumerate()
+        .map(|(i, (_, s))| (i + 1, s))
+        .filter(|f| {
+            if selection.len() == 0 {
+                true
+            } else {
+                selection.contains(&f.0)
+            }
+        })
+        .map(|(i, line)| {
+            let files: Vec<&str> = line.split(",").collect();
+            let inp = anek_dir.inputs(i, &files);
+            inp.read_files()
+        })
+        .collect()
+}
+
+pub fn exec_on_input(
+    cmd: &Command,
+    input: &CommandInputs,
     wd: &PathBuf,
-    overwrite: &HashMap<&str, &str>,
+    overwrite: &HashMap<String, String>,
     demo: bool,
     pipable: bool,
-    name: &str,
     print_extras: (&str, &str),
 ) -> Result<(), Error> {
-    let command = render_on_inputfile(cmd, filenames, wd, overwrite)?;
-    if !pipable {
-        eprint!("{} ({}): ", "Command".bright_green(), name);
-    }
-    println!("{}{}{}", print_extras.0, command.trim(), print_extras.1);
-    if !pipable {
-        eprintln!("⇒");
-    }
-    if !(demo || pipable) {
-        Exec::shell(command).cwd(&wd).join().unwrap();
+    let variables = variables_from_input(input, wd, overwrite)?;
+    if pipable {
+        let command = cmd.render(variables, wd.to_path_buf())?;
+        println!("{}{}{}", print_extras.0, command.trim(), print_extras.1);
+    } else {
+        cmd.run(&variables, wd, demo, !pipable)?;
     }
     Ok(())
 }
 
-pub fn render_on_inputfile(
-    templ: &Template,
-    filenames: &Vec<PathBuf>,
+pub fn variables_from_input(
+    input: &CommandInputs,
     wd: &PathBuf,
-    overwrite: &HashMap<&str, &str>,
-) -> Result<String, Error> {
-    let mut input_map: HashMap<&str, &str> = HashMap::new();
-    let lines = variable::compact_lines_from_anek_file(filenames)?;
-    variable::read_inputs(&lines, &mut input_map)?;
+    overwrite: &HashMap<String, String>,
+) -> Result<HashMap<String, String>, Error> {
+    let mut input_map = input.variables().clone();
     // render the metavariables in the overwrite
-    let overwrite_meta: Vec<(&str, String)> = overwrite
+    let renderop = RenderOptions {
+        variables: input_map.clone(),
+        wd: wd.to_path_buf(),
+        shell_commands: true,
+    };
+    let overwrite_meta: Vec<(String, String)> = overwrite
         .iter()
-        .map(|(k, v)| -> Result<(&str, String), Error> {
-            variable::render_template(&Template::parse_template(v)?, &input_map, wd)
-                .and_then(|s| Ok((*k, s)))
+        .map(|(k, v)| -> Result<(String, String), Error> {
+            Template::parse_template(v)?
+                .render(&renderop)
+                .and_then(|s| Ok((k.to_string(), s)))
         })
-        .collect::<Result<Vec<(&str, String)>, Error>>()?;
-    for (k, v) in &overwrite_meta {
-        input_map.insert(k, &v);
+        .collect::<Result<Vec<(String, String)>, Error>>()?;
+    for (k, v) in overwrite_meta {
+        input_map.insert(k.to_string(), v);
     }
-    variable::render_template(templ, &input_map, wd)
+    Ok(input_map)
 }
 
-pub fn exec_pipeline_on_inputfile(
-    commands: &Vec<(String, String, Template)>,
-    input_file: &Vec<PathBuf>,
+pub fn exec_pipeline_on_input(
+    commands: &Vec<Command>,
+    input: &CommandInputs,
     wd: &PathBuf,
-    overwrite: &HashMap<&str, &str>,
+    overwrite: &HashMap<String, String>,
     demo: bool,
     pipable: bool,
     print_extras: (&str, &str),
 ) -> Result<(), Error> {
-    for (name, _, command) in commands {
-        exec_on_inputfile(
-            &command,
-            &input_file,
-            &wd,
-            &overwrite,
-            demo,
-            pipable,
-            name,
-            print_extras,
-        )?;
+    for command in commands {
+        exec_on_input(command, input, &wd, overwrite, demo, pipable, print_extras)?;
     }
     Ok(())
 }
 
 pub fn exec_pipeline(
-    commands: &Vec<(String, String, Template)>,
+    commands: &Vec<Command>,
     wd: &PathBuf,
-    inputs: &HashMap<&str, &str>,
+    inputs: &HashMap<String, String>,
     demo: bool,
     pipable: bool,
     print_extras: (&str, &str),
 ) -> Result<(), Error> {
-    for (name, _, command) in commands {
-        let cmd = variable::render_template(command, &inputs, wd)?;
-        if !pipable {
-            eprint!("{} ({}): ", "Command".bright_green(), name);
-        }
-        println!("{}{}{}", print_extras.0, cmd, print_extras.1);
-        if !pipable {
-            eprintln!("⇒");
-        }
-        if !(demo || pipable) {
-            Exec::shell(cmd).cwd(&wd).join()?;
+    for command in commands {
+        if pipable {
+            let cmd = command.render(inputs.clone(), wd.to_path_buf())?;
+            command.print(&format!("{}{}{}", print_extras.0, cmd, print_extras.1));
+        } else {
+            command.run(inputs, wd, demo, !pipable)?
         }
     }
     Ok(())

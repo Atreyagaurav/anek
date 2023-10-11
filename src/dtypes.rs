@@ -1,7 +1,12 @@
 use anyhow::Error;
+use colored::Colorize;
 use core::slice::Iter;
-use std::{fs, path::PathBuf};
-use string_template_plus::Template;
+use itertools::Itertools;
+use std::{collections::HashMap, fs, path::PathBuf};
+use string_template_plus::{Render, RenderOptions, Template};
+use subprocess::Exec;
+
+use crate::variable;
 
 #[derive(Clone)]
 pub enum AnekDirectoryType {
@@ -75,6 +80,95 @@ pub struct Command {
     name: String,
     cmd: String,
     templ: Template,
+}
+
+impl Command {
+    pub fn new<T: ToString>(name: T, cmd: T) -> Result<Self, Error> {
+        Ok(Self {
+            name: name.to_string(),
+            cmd: cmd.to_string(),
+            templ: Template::parse_template(&cmd.to_string())?,
+        })
+    }
+
+    pub fn template(&self) -> &Template {
+        &self.templ
+    }
+
+    pub fn print(&self, rendered_cmd: &str) {
+        eprint!("{} ({}): ", "Command".bright_green(), self.name);
+        println!("{}", rendered_cmd);
+        eprintln!("⇒");
+    }
+
+    pub fn render(&self, variables: HashMap<String, String>, wd: PathBuf) -> Result<String, Error> {
+        let op = RenderOptions {
+            wd: wd,
+            variables,
+            shell_commands: true,
+        };
+        self.templ.render(&op)
+    }
+
+    pub fn run(
+        &self,
+        variables: &HashMap<String, String>,
+        wd: &PathBuf,
+        demo: bool,
+        print: bool,
+    ) -> Result<(), Error> {
+        let cmd = self.render(variables.clone(), wd.to_path_buf())?;
+        if print {
+            self.print(&cmd);
+        }
+        if !demo {
+            Exec::shell(cmd).cwd(&wd).join()?;
+        }
+        Ok(())
+    }
+}
+
+pub struct CommandInputs {
+    index: usize,
+    name: String,
+    files: Vec<PathBuf>,
+    variables: HashMap<String, String>,
+}
+
+impl CommandInputs {
+    pub fn from_files(index: usize, name: String, files: Vec<PathBuf>) -> Self {
+        Self {
+            index,
+            name,
+            files,
+            variables: HashMap::new(),
+        }
+    }
+
+    pub fn read_files(mut self) -> Result<Self, Error> {
+        let lines = variable::compact_lines_from_anek_file(self.files())?;
+        variable::read_inputs(&lines, &mut self.variables)?;
+        Ok(self)
+    }
+
+    pub fn files(&self) -> &Vec<PathBuf> {
+        &self.files
+    }
+
+    pub fn variables(&self) -> &HashMap<String, String> {
+        &self.variables
+    }
+
+    pub fn eprint_job(&self, job: usize, total: usize) {
+        eprintln!(
+            "{} {} [{} of {}]: {}",
+            "Job".bright_purple().bold(),
+            self.index,
+            job,
+            total,
+            self.name
+        );
+    }
 }
 
 impl AnekDirectory {
@@ -158,6 +252,14 @@ impl AnekDirectory {
             cmd: s,
             templ,
         })
+    }
+
+    pub fn inputs<T: ToString>(&self, index: usize, files: &Vec<T>) -> CommandInputs {
+        CommandInputs::from_files(
+            index,
+            files.iter().map(|s| s.to_string()).join(","),
+            self.get_files(&AnekDirectoryType::Inputs, &files),
+        )
     }
 }
 

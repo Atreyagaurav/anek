@@ -123,22 +123,6 @@ pub fn read_inputs_set<'a>(
     Ok(())
 }
 
-pub fn render_template(
-    templ: &Template,
-    input_map: &HashMap<&str, &str>,
-    wd: &PathBuf,
-) -> Result<String, Error> {
-    let op = RenderOptions {
-        wd: wd.to_path_buf(),
-        variables: input_map
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect(),
-        shell_commands: true,
-    };
-    templ.render(&op)
-}
-
 pub fn read_inputs_set_from_commands<'a>(
     enum_lines: &'a Vec<(usize, String)>,
     input_map: &mut HashSet<&'a str>,
@@ -163,15 +147,15 @@ pub fn read_inputs_set_from_commands<'a>(
     Ok(())
 }
 
-pub fn read_inputs<'a>(
-    enum_lines: &'a Vec<(usize, String)>,
-    input_map: &mut HashMap<&'a str, &'a str>,
+pub fn read_inputs(
+    enum_lines: &Vec<(usize, String)>,
+    input_map: &mut HashMap<String, String>,
 ) -> Result<(), Error> {
     for (i, line) in enum_lines {
         let split_data = line
             .split_once("=")
             .context(format!("Invalid Line# {}: \"{}\"", i, line))?;
-        input_map.insert(split_data.0, split_data.1);
+        input_map.insert(split_data.0.to_string(), split_data.1.to_string());
     }
     Ok(())
 }
@@ -291,7 +275,7 @@ fn update_from_stdin(file: &PathBuf) -> Result<(), Error> {
         HashMap::new()
     } else if file.is_file() {
         let lines = input_lines(&file, None)?;
-        let mut vars: HashMap<&str, &str> = HashMap::new();
+        let mut vars: HashMap<String, String> = HashMap::new();
         read_inputs(&lines, &mut vars)?;
         vars.iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
