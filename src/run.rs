@@ -20,10 +20,9 @@ pub struct CliArgs {
     pipeline: bool,
     /// Don't Print commands
     #[arg(short, long)]
-    hide_cmd: bool,
-    /// Don't Print Inputs
-    #[arg(short = 'H', long)]
-    hide_inputs: bool,
+    /// Don't print the other info except commands
+    #[arg(short = 'P', long)]
+    pipable: bool,
     /// Demo only, don't run the actual command
     ///
     /// Does everything but skips running the command, you can make
@@ -69,12 +68,12 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let input_files = run_utils::inputs(&anek_dir, &args.inputs, &variables)?;
     let total = input_files.len();
     for (i, input) in input_files.iter().enumerate() {
-        if !args.hide_inputs {
+        if !args.pipable {
             input.eprint_job(i + 1, total);
         }
         let variables = run_utils::variables_from_input(input, &args.path, &overwrite)?;
         for cmd in &commands {
-            cmd.run(&variables, &args.path, args.demo, !args.hide_cmd)?;
+            cmd.run(&variables, &args.path, args.demo, args.pipable)?;
         }
     }
     Ok(())

@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_dir, File};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
-use string_template_plus::{Render, RenderOptions, Template, TemplatePart};
+use string_template_plus::{Template, TemplatePart};
 
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
 

@@ -78,7 +78,6 @@ pub struct AnekDirectory {
 
 pub struct Command {
     name: String,
-    cmd: String,
     templ: Template,
 }
 
@@ -86,7 +85,6 @@ impl Command {
     pub fn new<T: ToString>(name: T, cmd: T) -> Result<Self, Error> {
         Ok(Self {
             name: name.to_string(),
-            cmd: cmd.to_string(),
             templ: Template::parse_template(&cmd.to_string())?,
         })
     }
@@ -115,16 +113,16 @@ impl Command {
         variables: &HashMap<String, String>,
         wd: &PathBuf,
         demo: bool,
-        print: bool,
+        pipable: bool,
     ) -> Result<(), Error> {
         let cmd = self.render(variables.clone(), wd.to_path_buf())?;
-        if print {
-            self.print(&cmd);
-        } else if demo {
+        if pipable {
             println!("{}", cmd);
-        }
-        if !demo {
-            Exec::shell(cmd).cwd(&wd).join()?;
+        } else {
+            self.print(&cmd);
+            if !demo {
+                Exec::shell(cmd).cwd(&wd).join()?;
+            }
         }
         Ok(())
     }
@@ -260,7 +258,6 @@ impl AnekDirectory {
         let templ = Template::parse_template(s.trim())?;
         Ok(Command {
             name: cmd.to_string(),
-            cmd: s,
             templ,
         })
     }
