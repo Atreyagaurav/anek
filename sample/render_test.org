@@ -1,0 +1,18 @@
+Here I'll be testing render
+
+* Top level heading
+
+# ------8<---------
+** Subheadings for the inputs
+And some template here: mean is {mean}, and sd is {sd}.
+# ------8<---------
+
+Then we have other things
+
+* Another top level heading
+# ------8<---------
+** Another Subheadings for the inputs
+And again mean is {mean}, and sd is {sd}.
+# ------8<---------
+
+And finally we'll end here.

@@ -1,7 +1,8 @@
 use anyhow::Error;
 use clap::{Args, ValueHint};
 use std::collections::{HashMap, HashSet};
-use std::fs;
+use std::fs::{self, File};
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use string_template_plus::{Render, RenderOptions, Template};
 
@@ -23,6 +24,12 @@ pub struct CliArgs {
     /// curly braces syntax won't be used for anything else that
     /// way. Do be careful about that. And the program will replace
     /// those templates with their values when you run it with inputs.
+    ///
+    /// For batch files, it'll repeat the same contents for each
+    /// file. If you want only a portion of the file repeated for all
+    /// inputs in a batch file inclose them with lines with `---8<---`
+    /// on both start and the end. The lines containing the clip
+    /// syntax will be ignored, ideally you can put them in comments.
     #[arg(value_hint = ValueHint::FilePath)]
     file: String,
 
@@ -30,30 +37,126 @@ pub struct CliArgs {
     inputs: run_utils::Inputs,
 }
 
+enum RenderFileContentsType {
+    Include(PathBuf),
+    TopLevel(String),
+    Snippet(Template),
+}
+
+struct RenderFileContents {
+    contents: Vec<RenderFileContentsType>,
+}
+
+fn insert_till_now(
+    snippet: bool,
+    lines: &mut String,
+    filecontents: &mut RenderFileContents,
+) -> Result<(), Error> {
+    let p = if snippet {
+        RenderFileContentsType::Snippet(Template::parse_template(&lines)?)
+    } else {
+        RenderFileContentsType::TopLevel(lines.clone())
+    };
+    filecontents.contents.push(p);
+    lines.clear();
+    Ok(())
+}
+
+impl RenderFileContents {
+    fn read_file(filename: &str) -> Result<Self, Error> {
+        let file = match File::open(&filename) {
+            Ok(f) => f,
+            Err(e) => {
+                return Err(Error::msg(format!(
+                    "Couldn't open input file: {:?}\n{:?}",
+                    &filename, e
+                )))
+            }
+        };
+        let reader_lines = BufReader::new(file).lines();
+
+        let mut snippet = false;
+        let mut filecontents = RenderFileContents {
+            contents: Vec::new(),
+        };
+        let mut lines = String::new();
+        for line in reader_lines {
+            let l = line.unwrap();
+            if l.contains("---8<---") {
+                insert_till_now(snippet, &mut lines, &mut filecontents)?;
+                snippet = !snippet;
+            } else if l.contains("---file:") {
+                if snippet {
+                    return Err(Error::msg("Cannot have file in render snippet"));
+                }
+                insert_till_now(snippet, &mut lines, &mut filecontents)?;
+                let (_, fname) = l.split_once(':').unwrap();
+                filecontents.contents.push(RenderFileContentsType::Include(
+                    PathBuf::from(filename).parent().unwrap().join(fname.trim()),
+                ))
+            } else {
+                lines.push_str(&l);
+                lines.push('\n');
+            }
+        }
+        if filecontents.contents.is_empty() {
+            // if there is no ---8<--- in file, consider the whole
+            // file as snippet
+            snippet = true;
+        }
+        if !lines.is_empty() {
+            insert_till_now(snippet, &mut lines, &mut filecontents)?;
+        }
+        Ok(filecontents)
+    }
+
+    fn snippet(templ: &str) -> Result<Self, Error> {
+        Ok(Self {
+            contents: vec![RenderFileContentsType::Snippet(Template::parse_template(
+                templ,
+            )?)],
+        })
+    }
+
+    fn print_render(&self, inputs: Vec<HashMap<String, String>>) -> Result<(), Error> {
+        for part in &self.contents {
+            match part {
+                RenderFileContentsType::Include(f) => {
+                    print!("{}", fs::read_to_string(&f)?);
+                }
+                RenderFileContentsType::TopLevel(s) => print!("{}", s),
+                RenderFileContentsType::Snippet(templ) => {
+                    for input in &inputs {
+                        let renderops = RenderOptions {
+                            variables: input.clone(),
+                            wd: PathBuf::default(),
+                            shell_commands: true,
+                        };
+                        print!("{}", templ.render(&renderops)?);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from_pwd()?;
     let template = if args.template {
-        Template::parse_template(args.file.trim())?
+        RenderFileContents::snippet(&args.file)?
     } else {
-        let path = PathBuf::from(args.file);
-        let file_content = fs::read_to_string(&path)?;
-        Template::parse_template(&file_content.trim())?
+        RenderFileContents::read_file(&args.file)?
     };
 
     let cmd_args = run_utils::command_args(&args.inputs);
     let overwrite: HashMap<String, String> = run_utils::overwrite_vars(&args.inputs, &cmd_args)?;
 
     let input_files = run_utils::inputs(&anek_dir, &args.inputs, &HashSet::new())?;
-    let total = input_files.len();
-    for (i, input) in input_files.iter().enumerate() {
-        input.eprint_job(i + 1, total);
-        let variables = run_utils::variables_from_input(input, &overwrite)?;
-        let renderops = RenderOptions {
-            variables,
-            wd: PathBuf::default(),
-            shell_commands: true,
-        };
-        println!("{}", template.render(&renderops)?);
-    }
+    let variables = input_files
+        .iter()
+        .map(|inp| -> Result<_, Error> { run_utils::variables_from_input(inp, &overwrite) })
+        .collect::<Result<Vec<_>, Error>>()?;
+    template.print_render(variables)?;
     Ok(())
 }
