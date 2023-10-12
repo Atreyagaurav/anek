@@ -236,14 +236,13 @@ pub fn input_files(
 
 pub fn variables_from_input(
     input: &CommandInputs,
-    wd: &PathBuf,
     overwrite: &HashMap<String, String>,
 ) -> Result<HashMap<String, String>, Error> {
     let mut input_map = input.variables().clone();
     // render the metavariables in the overwrite
     let renderop = RenderOptions {
         variables: input_map.clone(),
-        wd: wd.to_path_buf(),
+        wd: PathBuf::default(),
         shell_commands: true,
     };
     let overwrite_meta: Vec<(String, String)> = overwrite

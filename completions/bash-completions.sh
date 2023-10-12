@@ -653,7 +653,7 @@ _anek() {
             ;;
         anek__run)
             opts="-t -p -P -d -h --template --pipeline --pipable --demo --help <COMMAND> [PATH] on help"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+            if [[ ${cur} == -* ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -675,10 +675,10 @@ _anek() {
                     return 0
                     ;;
                 *)
-                    COMPREPLY=()
+                    COMPREPLY=($(compgen -W "$(anek -q list -c)" -- "${cur}"))
                     ;;
             esac
-            COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
+            COMPREPLY=($(compgen -W "$(anek -q list -c)" -- "${cur}"))
             return 0
             ;;
         anek__run__help)

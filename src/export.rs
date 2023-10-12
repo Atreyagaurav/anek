@@ -18,9 +18,6 @@ pub struct CliArgs {
     #[arg(short, long,  value_delimiter=',', value_hint = ValueHint::Other)]
     variables: Vec<String>,
 
-    #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
-    path: PathBuf,
-
     #[command(subcommand)]
     inputs: run_utils::Inputs,
 }
@@ -111,7 +108,7 @@ impl ExportWrapers {
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), Error> {
-    let anek_dir = AnekDirectory::from(&args.path)?;
+    let anek_dir = AnekDirectory::from_pwd()?;
 
     let wrappers = ExportWrapers::from_name(&args.format, &args.variables)?;
     let cmd_args = run_utils::command_args(&args.inputs);
@@ -119,7 +116,7 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let input_files = run_utils::inputs(&anek_dir, &args.inputs, &HashSet::new())?;
 
     let mut renderop = RenderOptions {
-        wd: args.path.clone(),
+        wd: PathBuf::from("."),
         variables: HashMap::new(),
         shell_commands: false,
     };
@@ -130,7 +127,7 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
         let i = i + 1;
         print!("{}", wrappers.start_line);
         input.eprint_job(i, total);
-        renderop.variables = run_utils::variables_from_input(input, &args.path, &overwrite)?;
+        renderop.variables = run_utils::variables_from_input(input, &overwrite)?;
         print!("{}", wrappers.vars_templ.render(&renderop)?);
         print!("{}", wrappers.end_line);
         if i < total {

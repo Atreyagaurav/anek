@@ -99,9 +99,9 @@ impl Command {
         eprintln!("⇒");
     }
 
-    pub fn render(&self, variables: HashMap<String, String>, wd: PathBuf) -> Result<String, Error> {
+    pub fn render(&self, variables: HashMap<String, String>) -> Result<String, Error> {
         let op = RenderOptions {
-            wd: wd,
+            wd: PathBuf::default(),
             variables,
             shell_commands: true,
         };
@@ -111,17 +111,16 @@ impl Command {
     pub fn run(
         &self,
         variables: &HashMap<String, String>,
-        wd: &PathBuf,
         demo: bool,
         pipable: bool,
     ) -> Result<(), Error> {
-        let cmd = self.render(variables.clone(), wd.to_path_buf())?;
+        let cmd = self.render(variables.clone())?;
         if pipable {
             println!("{}", cmd);
         } else {
             self.print(&cmd);
             if !demo {
-                Exec::shell(cmd).cwd(&wd).join()?;
+                Exec::shell(cmd).join()?;
             }
         }
         Ok(())
@@ -197,6 +196,10 @@ impl AnekDirectory {
                 Err(Error::msg("No .anek configuration in the current path"))
             }
         }
+    }
+
+    pub fn from_pwd() -> Result<Self, Error> {
+        Self::from(&PathBuf::from("."))
     }
 
     pub fn new(wd: &PathBuf) -> Result<Self, Error> {

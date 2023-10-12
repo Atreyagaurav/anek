@@ -1,7 +1,6 @@
 use anyhow::Error;
 use clap::{Args, ValueHint};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
 
 use crate::dtypes::{AnekDirectory, Command};
 use crate::run_utils;
@@ -36,15 +35,12 @@ pub struct CliArgs {
     /// values if there are some).
     #[arg(value_hint = ValueHint::Other)]
     command: String,
-    #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
-    path: PathBuf,
-
     #[command(subcommand)]
     inputs: run_utils::Inputs,
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), Error> {
-    let anek_dir = AnekDirectory::from(&args.path)?;
+    let anek_dir = AnekDirectory::from_pwd()?;
     let commands = if args.template {
         vec![Command::new("-T-", &args.command)?]
     } else if args.pipeline {
@@ -71,9 +67,9 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
         if !args.pipable {
             input.eprint_job(i + 1, total);
         }
-        let variables = run_utils::variables_from_input(input, &args.path, &overwrite)?;
+        let variables = run_utils::variables_from_input(input, &overwrite)?;
         for cmd in &commands {
-            cmd.run(&variables, &args.path, args.demo, args.pipable)?;
+            cmd.run(&variables, args.demo, args.pipable)?;
         }
     }
     Ok(())

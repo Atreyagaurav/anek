@@ -25,15 +25,13 @@ pub struct CliArgs {
     /// those templates with their values when you run it with inputs.
     #[arg(value_hint = ValueHint::FilePath)]
     file: String,
-    #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
-    path: PathBuf,
 
     #[command(subcommand)]
     inputs: run_utils::Inputs,
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), Error> {
-    let anek_dir = AnekDirectory::from(&args.path)?;
+    let anek_dir = AnekDirectory::from_pwd()?;
     let template = if args.template {
         Template::parse_template(args.file.trim())?
     } else {
@@ -49,10 +47,10 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let total = input_files.len();
     for (i, input) in input_files.iter().enumerate() {
         input.eprint_job(i + 1, total);
-        let variables = run_utils::variables_from_input(input, &args.path, &overwrite)?;
+        let variables = run_utils::variables_from_input(input, &overwrite)?;
         let renderops = RenderOptions {
             variables,
-            wd: args.path.clone(),
+            wd: PathBuf::default(),
             shell_commands: true,
         };
         println!("{}", template.render(&renderops)?);
