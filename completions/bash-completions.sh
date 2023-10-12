@@ -18,6 +18,9 @@ _anek() {
             anek,edit)
                 cmd="anek__edit"
                 ;;
+            anek,export)
+                cmd="anek__export"
+                ;;
             anek,graph)
                 cmd="anek__graph"
                 ;;
@@ -29,6 +32,9 @@ _anek() {
                 ;;
             anek,new)
                 cmd="anek__new"
+                ;;
+            anek,render)
+                cmd="anek__render"
                 ;;
             anek,report)
                 cmd="anek__report"
@@ -45,11 +51,26 @@ _anek() {
             anek,view)
                 cmd="anek__view"
                 ;;
+            anek__export,help)
+                cmd="anek__export__help"
+                ;;
+            anek__export,on)
+                cmd="anek____on"
+                ;;
+            anek__export__help,help)
+                cmd="anek__export__help__help"
+                ;;
+            anek__export__help,on)
+                cmd="anek____help__on"
+                ;;
             anek__help,completions)
                 cmd="anek__help__completions"
                 ;;
             anek__help,edit)
                 cmd="anek__help__edit"
+                ;;
+            anek__help,export)
+                cmd="anek__help__export"
                 ;;
             anek__help,graph)
                 cmd="anek__help__graph"
@@ -62,6 +83,9 @@ _anek() {
                 ;;
             anek__help,new)
                 cmd="anek__help__new"
+                ;;
+            anek__help,render)
+                cmd="anek__help__render"
                 ;;
             anek__help,report)
                 cmd="anek__help__report"
@@ -78,6 +102,39 @@ _anek() {
             anek__help,view)
                 cmd="anek__help__view"
                 ;;
+            anek__help__export,on)
+                cmd="anek__help____on"
+                ;;
+            anek__help__render,on)
+                cmd="anek__help____on"
+                ;;
+            anek__help__run,on)
+                cmd="anek__help____on"
+                ;;
+            anek__render,help)
+                cmd="anek__render__help"
+                ;;
+            anek__render,on)
+                cmd="anek____on"
+                ;;
+            anek__render__help,help)
+                cmd="anek__render__help__help"
+                ;;
+            anek__render__help,on)
+                cmd="anek____help__on"
+                ;;
+            anek__run,help)
+                cmd="anek__run__help"
+                ;;
+            anek__run,on)
+                cmd="anek____on"
+                ;;
+            anek__run__help,help)
+                cmd="anek__run__help__help"
+                ;;
+            anek__run__help,on)
+                cmd="anek____help__on"
+                ;;
             *)
                 ;;
         esac
@@ -85,7 +142,7 @@ _anek() {
 
     case "${cmd}" in
         anek)
-            opts="-q -h -V --quiet --help --version new variable list edit run completions report view show graph help"
+            opts="-q -h -V --quiet --help --version new variable list edit export run render completions report view show graph help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -114,7 +171,51 @@ _anek() {
             ;;
         anek__edit)
             opts="-h --help <ANEK_FILE> [PATH]"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+		    COMPREPLY=($(compgen -W "$(anek -q list -a)" -- "${cur}"))
+                    ;;
+            esac
+            COMPREPLY=($(compgen -W "$(anek -q list -a)" -- "${cur}"))
+            return 0
+            ;;
+        anek__export)
+            opts="-f -v -h --format --variables --help [PATH] on help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --format)
+                    COMPREPLY=( $(compgen -W "csv json plain" -- "${cur}") )
+                    return 0
+                    ;;
+                -f)
+                    COMPREPLY=( $(compgen -W "csv json plain" -- "${cur}") )
+                    return 0
+                    ;;
+                --variables)
+                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
+                    return 0
+                    ;;
+                -v)
+                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__export__help)
+            opts="on help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -123,7 +224,89 @@ _anek() {
                     COMPREPLY=()
                     ;;
             esac
-            COMPREPLY=( $(compgen -W "$(anek -q list)" -- "${cur}") )
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__export__help__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek____help__on)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek____on)
+            opts="-s -b -l -i -o -h --select-inputs --batch --loop --input --overwrite --help [COMMAND_ARGS]..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --select-inputs)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -s)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --batch)
+                    COMPREPLY=($(compgen -W "$(anek -q list -b)" -- "${cur}"))
+                    return 0
+                    ;;
+                -b)
+                    COMPREPLY=($(compgen -W "$(anek -q list -b)" -- "${cur}"))
+                    return 0
+                    ;;
+                --loop)
+                    COMPREPLY=($(compgen -W "$(anek -q list -l)" -- "${cur}"))
+                    return 0
+                    ;;
+                -l)
+                    COMPREPLY=($(compgen -W "$(anek -q list -l)" -- "${cur}"))
+                    return 0
+                    ;;
+                --input)
+                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
+                    return 0
+                    ;;
+                -i)
+                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
+                    return 0
+                    ;;
+                --overwrite)
+                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
+                    return 0
+                    ;;
+                -o)
+                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
         anek__graph)
@@ -157,7 +340,7 @@ _anek() {
             return 0
             ;;
         anek__help)
-            opts="new variable list edit run completions report view show graph help"
+            opts="new variable list edit export run render completions report view show graph help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -186,6 +369,20 @@ _anek() {
             ;;
         anek__help__edit)
             opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__help__export)
+            opts="on"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -254,6 +451,20 @@ _anek() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        anek__help__render)
+            opts="on"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         anek__help__report)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
@@ -269,7 +480,7 @@ _anek() {
             return 0
             ;;
         anek__help__run)
-            opts=""
+            opts="on"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -293,7 +504,7 @@ _anek() {
                     COMPREPLY=()
                     ;;
             esac
-            COMPREPLY=( $(compgen -W "$(anek -q list)" -- "${cur}") )
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
         anek__help__variable)
@@ -332,19 +543,19 @@ _anek() {
             fi
             case "${prev}" in
                 --filter)
-                    COMPREPLY=($(compgen -W "$(anek -q list -v) $(anek -q list -c) $(anek -q list -i)" -- "${cur}"))
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 -F)
-                    COMPREPLY=($(compgen -W "$(anek -q list -v) $(anek -q list -c) $(anek -q list -i)" -- "${cur}"))
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 --search)
-                    COMPREPLY=($(compgen -W "$(anek -q list -v) $(anek -q list -c) $(anek -q list -i)" -- "${cur}"))
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 -s)
-                    COMPREPLY=($(compgen -W "$(anek -q list -v) $(anek -q list -c) $(anek -q list -i)" -- "${cur}"))
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 *)
@@ -376,6 +587,48 @@ _anek() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        anek__render)
+            opts="-t -h --template --help <FILE> [PATH] on help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__render__help)
+            opts="on help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__render__help__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         anek__report)
             opts="-f -h --filename --help [PATH]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
@@ -399,82 +652,18 @@ _anek() {
             return 0
             ;;
         anek__run)
-            opts="-c -C -p -r -R -e -E -s -b -l -i -P -d -o -h --command --command-template --pipeline --render --render-template --export --export-format --select-inputs --batch --loop --input --pipable --demo --overwrite --help [PATH] [COMMAND_ARGS]..."
+            opts="-t -p -P -d -h --template --pipeline --pipable --demo --help <COMMAND> [PATH] on help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --command)
-                    COMPREPLY=($(compgen -W "$(anek -q list -c)" -- "${cur}"))
-                    return 0
-                    ;;
-                -c)
-                    COMPREPLY=($(compgen -W "$(anek -q list -c)" -- "${cur}"))
-                    return 0
-                    ;;
-                --command-template)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -C)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
                 --pipeline)
                     COMPREPLY=($(compgen -W "$(anek -q list -p)" -- "${cur}"))
                     return 0
                     ;;
                 -p)
                     COMPREPLY=($(compgen -W "$(anek -q list -p)" -- "${cur}"))
-                    return 0
-                    ;;
-                --render)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -r)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --render-template)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -R)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --export)
-                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
-                    return 0
-                    ;;
-                -e)
-                    COMPREPLY=($(compgen -W "$(anek -q list -v)" -- "${cur}"))
-                    return 0
-                    ;;
-                --export-format)
-                    COMPREPLY=($(compgen -W "csv json plain" -- "${cur}"))
-                    return 0
-                    ;;
-                -E)
-                    COMPREPLY=($(compgen -W "csv json plain" -- "${cur}"))
-                    return 0
-                    ;;
-                --select-inputs)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -s)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --batch)
-                    COMPREPLY=($(compgen -W "$(anek -q list -b)" -- "${cur}"))
-                    return 0
-                    ;;
-                -b)
-                    COMPREPLY=($(compgen -W "$(anek -q list -b)" -- "${cur}"))
                     return 0
                     ;;
                 --loop)
@@ -485,22 +674,34 @@ _anek() {
                     COMPREPLY=($(compgen -W "$(anek -q list -l)" -- "${cur}"))
                     return 0
                     ;;
-                --input)
-                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
-                    return 0
+                *)
+                    COMPREPLY=()
                     ;;
-                -i)
-                    COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
-                    return 0
+            esac
+            COMPREPLY=($(compgen -W "$(anek -q list -i)" -- "${cur}"))
+            return 0
+            ;;
+        anek__run__help)
+            opts="on help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
                     ;;
-                --overwrite)
-                    COMPREPLY=($(compgen -S ":" -W "$(anek -q list -v)" -- "${cur}"))
-                    return 0
-                    ;;
-                -o)
-                    COMPREPLY=($(compgen -S ":" -W "$(anek -q list -v)" -- "${cur}"))
-                    return 0
-                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        anek__run__help__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
                 *)
                     COMPREPLY=()
                     ;;
@@ -510,16 +711,16 @@ _anek() {
             ;;
         anek__show)
             opts="-h --help <ANEK_FILE> [PATH]"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
                 *)
-                    COMPREPLY=()
+                    COMPREPLY=($(compgen -W "$(anek -q list -a)" -- "${cur}"))
                     ;;
             esac
-            COMPREPLY=($(compgen -W "$(anek -q list)" -- "${cur}"))
+            COMPREPLY=($(compgen -W "$(anek -q list -a)" -- "${cur}"))
             return 0
             ;;
         anek__variable)
