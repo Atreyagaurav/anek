@@ -1,7 +1,8 @@
-use anyhow::Error;
+use anyhow::{Context, Error};
 use clap::{Args, ValueHint};
+use number_range::NumberRangeOptions;
 use std::collections::{HashMap, HashSet};
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use string_template_plus::{Render, RenderOptions, Template};
@@ -30,6 +31,12 @@ pub struct CliArgs {
     /// inputs in a batch file inclose them with lines with `---8<---`
     /// on both start and the end. The lines containing the clip
     /// syntax will be ignored, ideally you can put them in comments.
+    ///
+    /// You can also use `---file:<filename>[::line_range]` syntax to
+    /// include a file, the line_range syntax, if present, should be
+    /// in the form of `start[:increment]:end`, you can exclude start
+    /// or end to denote the line 1 or last line (e.g. `:5` is 1:5,
+    /// and `3:` is from line 3 to the end)
     #[arg(value_hint = ValueHint::FilePath)]
     file: String,
 
@@ -38,7 +45,7 @@ pub struct CliArgs {
 }
 
 enum RenderFileContentsType {
-    Include(PathBuf),
+    Include(PathBuf, String),
     TopLevel(String),
     Snippet(Template),
 }
@@ -91,8 +98,10 @@ impl RenderFileContents {
                 }
                 insert_till_now(snippet, &mut lines, &mut filecontents)?;
                 let (_, fname) = l.split_once(':').unwrap();
+                let (fname, lines) = fname.split_once("::").unwrap_or((fname, ":"));
                 filecontents.contents.push(RenderFileContentsType::Include(
                     PathBuf::from(filename).parent().unwrap().join(fname.trim()),
+                    lines.to_string(),
                 ))
             } else {
                 lines.push_str(&l);
@@ -121,8 +130,20 @@ impl RenderFileContents {
     fn print_render(&self, inputs: Vec<HashMap<String, String>>) -> Result<(), Error> {
         for part in &self.contents {
             match part {
-                RenderFileContentsType::Include(f) => {
-                    print!("{}", fs::read_to_string(&f)?);
+                RenderFileContentsType::Include(filename, lines) => {
+                    let file = File::open(&filename)
+                        .with_context(|| format!("File {filename:?} not found"))?;
+                    let reader_lines: Vec<String> =
+                        BufReader::new(file)
+                            .lines()
+                            .collect::<Result<Vec<String>, std::io::Error>>()?;
+                    let lines = NumberRangeOptions::default()
+                        .with_default_start(1)
+                        .with_default_end(reader_lines.len())
+                        .parse(lines)?;
+                    for l in lines {
+                        println!("{}", reader_lines[l - 1]);
+                    }
                 }
                 RenderFileContentsType::TopLevel(s) => print!("{}", s),
                 RenderFileContentsType::Snippet(templ) => {
