@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use string_template_plus::{Render, RenderOptions, Template};
 
 use crate::dtypes::AnekDirectory;
-use crate::run_utils;
+use crate::run_utils::{self, variables_from_input};
 
 #[derive(Args)]
 pub struct CliArgs {
@@ -46,8 +46,8 @@ pub struct CliArgs {
 
 enum RenderFileContentsType {
     Include(PathBuf, String),
-    TopLevel(String),
-    Snippet(Template),
+    Literal(String),
+    Snippet(Template, Option<String>),
 }
 
 struct RenderFileContents {
@@ -57,12 +57,13 @@ struct RenderFileContents {
 fn insert_till_now(
     snippet: bool,
     lines: &mut String,
+    batch: Option<String>,
     filecontents: &mut RenderFileContents,
 ) -> Result<(), Error> {
     let p = if snippet {
-        RenderFileContentsType::Snippet(Template::parse_template(&lines)?)
+        RenderFileContentsType::Snippet(Template::parse_template(&lines)?, batch)
     } else {
-        RenderFileContentsType::TopLevel(lines.clone())
+        RenderFileContentsType::Literal(lines.clone())
     };
     filecontents.contents.push(p);
     lines.clear();
@@ -87,16 +88,18 @@ impl RenderFileContents {
             contents: Vec::new(),
         };
         let mut lines = String::new();
+        let mut batch: Option<String> = None;
         for line in reader_lines {
             let l = line.unwrap();
             if l.contains("---8<---") {
-                insert_till_now(snippet, &mut lines, &mut filecontents)?;
+                insert_till_now(snippet, &mut lines, batch.clone(), &mut filecontents)?;
+                batch = l.split_once(':').map(|s| s.1.to_string());
                 snippet = !snippet;
             } else if l.contains("---file:") {
                 if snippet {
                     return Err(Error::msg("Cannot have file in render snippet"));
                 }
-                insert_till_now(snippet, &mut lines, &mut filecontents)?;
+                insert_till_now(snippet, &mut lines, None, &mut filecontents)?;
                 let (_, fname) = l.split_once(':').unwrap();
                 let (fname, lines) = fname.split_once("::").unwrap_or((fname, ":"));
                 filecontents.contents.push(RenderFileContentsType::Include(
@@ -114,20 +117,25 @@ impl RenderFileContents {
             snippet = true;
         }
         if !lines.is_empty() {
-            insert_till_now(snippet, &mut lines, &mut filecontents)?;
+            insert_till_now(snippet, &mut lines, batch, &mut filecontents)?;
         }
         Ok(filecontents)
     }
 
-    fn snippet(templ: &str) -> Result<Self, Error> {
+    fn snippet(templ: &str, batch: Option<String>) -> Result<Self, Error> {
         Ok(Self {
-            contents: vec![RenderFileContentsType::Snippet(Template::parse_template(
-                templ,
-            )?)],
+            contents: vec![RenderFileContentsType::Snippet(
+                Template::parse_template(templ)?,
+                batch,
+            )],
         })
     }
 
-    fn print_render(&self, inputs: Vec<HashMap<String, String>>) -> Result<(), Error> {
+    fn print_render(
+        &self,
+        inputs: Vec<HashMap<String, String>>,
+        overwrite: &HashMap<String, String>,
+    ) -> Result<(), Error> {
         for part in &self.contents {
             match part {
                 RenderFileContentsType::Include(filename, lines) => {
@@ -145,15 +153,30 @@ impl RenderFileContents {
                         println!("{}", reader_lines[l - 1]);
                     }
                 }
-                RenderFileContentsType::TopLevel(s) => print!("{}", s),
-                RenderFileContentsType::Snippet(templ) => {
-                    for input in &inputs {
-                        let renderops = RenderOptions {
-                            variables: input.clone(),
-                            wd: PathBuf::default(),
-                            shell_commands: true,
-                        };
-                        print!("{}", templ.render(&renderops)?);
+                RenderFileContentsType::Literal(s) => print!("{}", s),
+                RenderFileContentsType::Snippet(templ, batch) => {
+                    if let Some(batch) = batch {
+                        let ad = AnekDirectory::from(&PathBuf::default())?;
+                        let inputs =
+                            run_utils::input_files(&ad, &vec![batch.to_string()], &HashSet::new())?;
+                        for inp in &inputs {
+                            let input = variables_from_input(&inp, &overwrite)?;
+                            let renderops = RenderOptions {
+                                variables: input,
+                                wd: PathBuf::default(),
+                                shell_commands: true,
+                            };
+                            print!("{}", templ.render(&renderops)?);
+                        }
+                    } else {
+                        for input in &inputs {
+                            let renderops = RenderOptions {
+                                variables: input.clone(),
+                                wd: PathBuf::default(),
+                                shell_commands: true,
+                            };
+                            print!("{}", templ.render(&renderops)?);
+                        }
                     }
                 }
             }
@@ -165,7 +188,7 @@ impl RenderFileContents {
 pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from_pwd()?;
     let template = if args.template {
-        RenderFileContents::snippet(&args.file)?
+        RenderFileContents::snippet(&args.file, None)?
     } else {
         RenderFileContents::read_file(&args.file)?
     };
@@ -178,6 +201,6 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
         .iter()
         .map(|inp| -> Result<_, Error> { run_utils::variables_from_input(inp, &overwrite) })
         .collect::<Result<Vec<_>, Error>>()?;
-    template.print_render(variables)?;
+    template.print_render(variables, &overwrite)?;
     Ok(())
 }
