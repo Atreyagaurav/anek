@@ -275,6 +275,33 @@ fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), 
 
     Ok(())
 }
+
+fn print_update(filename: &str, variable: &str, old: Option<&str>, new: &str) {
+    if let Some(old) = old {
+        if old == new {
+            return;
+        }
+        let mut i: usize = 0;
+        for (o, n) in old.chars().zip(new.chars()) {
+            if o != n {
+                break;
+            }
+            i += 1;
+        }
+
+        println!(
+            "{0}:: {1}: {2}{3} -> {2}{4}",
+            filename,
+            variable,
+            &old[..i],
+            &old[i..].on_red(),
+            &new[i..].on_green()
+        );
+    } else {
+        println!("{}:: {}: {}", filename, variable, new);
+    }
+}
+
 fn update_file(file_s: &str, var_line: &str) -> Result<(), Error> {
     let file = PathBuf::from(file_s);
     if let Some((k, v)) = var_line.split_once("=") {
@@ -292,14 +319,7 @@ fn update_file(file_s: &str, var_line: &str) -> Result<(), Error> {
         };
 
         let (k, v) = (k.trim(), v.trim());
-        if variables.contains_key(k) {
-            if variables[k] == v {
-                return Ok(());
-            }
-            println!("{}:: {}: {} -> {}", file_s, k, variables[k], v);
-        } else {
-            println!("{}:: {}: {}", file_s, k, v);
-        }
+        print_update(file_s, k, variables.get(k).map(|s| s.as_str()), v);
         variables.insert(k.to_string(), v.to_string());
         let fp = std::fs::File::create(&file)?;
         let mut writer = BufWriter::new(fp);
