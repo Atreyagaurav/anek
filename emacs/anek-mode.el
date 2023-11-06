@@ -31,7 +31,7 @@
 
 (defun fill-anek-url-template (anek)
   (anek-run-command
-    (format "run -R '%s' -i %s"
+    (format "render -t '%s' on -i %s"
 	    anek-url-template
 	    anek)))
 
@@ -53,7 +53,7 @@
   (interactive (list (completing-read
 		      "Batch File:"
 		      (anek-list "list -b"))))
-  (let ((files (anek-list (concat "edit -e batch/" batch-file)))
+  (let ((files (anek-list (concat "show batch/" batch-file)))
 	(buf (get-buffer-create (format "*Anek [%s]*" batch-file))))
     (with-current-buffer buf
       (insert "Links for " batch-file "\n")
