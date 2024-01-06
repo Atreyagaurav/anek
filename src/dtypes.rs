@@ -101,7 +101,7 @@ impl Command {
 
     pub fn render(&self, variables: HashMap<String, String>) -> Result<String, Error> {
         let op = RenderOptions {
-            wd: PathBuf::default(),
+            wd: PathBuf::from("."),
             variables,
             shell_commands: true,
         };
