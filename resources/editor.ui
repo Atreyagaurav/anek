@@ -41,13 +41,18 @@
               </object>
             </child>
             <child>
-              <object class="GtkDropDown" id="cmb_file">
+              <object class="GtkDropDown" id="dd_file">
                 <property name="hexpand">1</property>
               </object>
             </child>
             <child>
               <object class="GtkButton" id="btn_save">
 		<property name="label">Save</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkSwitch" id="swt_save">
+		<!-- <property name="label">Auto</property> -->
               </object>
             </child>
           </object>

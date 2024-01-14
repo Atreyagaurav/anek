@@ -1,6 +1,6 @@
 # Maintainer: Gaurav Atreya <allmanpride@gmail.com>
 pkgname=anek
-pkgver=0.5.4
+pkgver=0.6.0
 pkgrel=1
 pkgdesc="Tool to run commands based on a templates"
 arch=('x86_64')
@@ -23,4 +23,6 @@ package() {
     "../target/release/${pkgname}" completions --fish > "$pkgdir/usr/share/fish/vendor_completions.d/${pkgname}.fish"
     mkdir -p "$pkgdir/usr/share/zsh/site-functions/"
     "../target/release/${pkgname}" completions --zsh > "$pkgdir/usr/share/zsh/site-functions/_${pkgname}"
+    mkdir -p "$pkgdir/usr/share/glib-2.0/schemas/"
+    cp "../resources/org.anek.AnekEditor.gschema.xml" "$pkgdir/usr/share/glib-2.0/schemas/"
 }

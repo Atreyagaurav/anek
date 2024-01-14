@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<schemalist>
+  <schema id="org.anek.AnekEditor" path="/org/anek/AnekEditor/">
+    <key name="project-path" type="s">
+      <default>"."</default>
+      <summary>Project Path</summary>
+    </key>
+  </schema>
+</schemalist>
