@@ -9,6 +9,7 @@ mod dtypes;
 mod edit;
 mod export;
 mod graph;
+mod gui;
 mod list;
 mod new;
 mod render;
@@ -38,6 +39,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Action {
+    /// Open the GUI
+    Gui,
     /// make a new anek configuration
     ///
     /// Make a new configuration setup (directories) in current
@@ -108,6 +111,7 @@ fn main() {
     let start_time = Local::now().format("%Y-%m-%d %H:%M:%S");
     let start = Instant::now();
     let action_result: Result<(), Error> = match g_args.action {
+        Action::Gui => gui::run(),
         Action::New(args) => new::new_config(args),
         Action::Variable(args) => variable::run_command(args),
         Action::List(args) => list::list_options(args),

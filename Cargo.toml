@@ -13,6 +13,7 @@ chrono = "0.4.23"
 clap = { version = "4.0.32", features = ["derive"] }
 clap_complete = "4.0.7"
 colored = "2.0.0"
+gtk = { version = "0.7.3", package = "gtk4", features = ["v4_12"] }
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 number_range = "0.3.0"
