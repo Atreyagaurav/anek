@@ -7,6 +7,7 @@ use std::time::Instant;
 mod completions;
 mod dtypes;
 mod edit;
+mod editor;
 mod export;
 mod graph;
 mod gui;
@@ -39,8 +40,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Action {
-    /// Open the GUI
+    /// Open the GUI for command run
     Gui,
+    /// Open the Editor GUI
+    Editor,
     /// make a new anek configuration
     ///
     /// Make a new configuration setup (directories) in current
@@ -112,6 +115,7 @@ fn main() {
     let start = Instant::now();
     let action_result: Result<(), Error> = match g_args.action {
         Action::Gui => gui::run(),
+        Action::Editor => editor::run(),
         Action::New(args) => new::new_config(args),
         Action::Variable(args) => variable::run_command(args),
         Action::List(args) => list::list_options(args),

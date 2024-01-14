@@ -3,7 +3,7 @@
   <requires lib="gtk" version="4.0"/>
   <object class="GtkTextBuffer" id="buf_file"/>
   <object class="GtkApplicationWindow" id="window">
-    <property name="title" translatable="1">Anek Command Manager</property>
+    <property name="title" translatable="1">Anek Editor</property>
     <property name="default-width">500</property>
     <property name="default-height">300</property>
     <property name="icon-name">input-keyboard</property>
@@ -35,38 +35,19 @@
         <child>
           <object class="GtkBox">
             <child>
-              <object class="GtkDropDown" id="dd_command">
-                <property name="hexpand">1</property>
-		<property name="model">
-		  <object class="GtkStringList">
-		    <items>
-		      <item translatable="no">run</item>
-		      <item translatable="no">render</item>
-		      <item translatable="no">export</item>
-		    </items>
-		  </object>
-		</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkDropDown" id="dd_task">
-                <property name="hexpand">1</property>
-              </object>
-            </child>
-            <child>
               <object class="GtkLabel">
-                <property name="label" translatable="1">On</property>
-                <property name="width-chars">4</property>
+                <property name="label" translatable="1">File:</property>
+                <property name="width-chars">8</property>
               </object>
             </child>
             <child>
-              <object class="GtkDropDown" id="dd_input">
+              <object class="GtkDropDown" id="cmb_file">
                 <property name="hexpand">1</property>
               </object>
             </child>
             <child>
-              <object class="GtkButton" id="btn_execute">
-		<property name="label">Execute</property>
+              <object class="GtkButton" id="btn_save">
+		<property name="label">Save</property>
               </object>
             </child>
           </object>
