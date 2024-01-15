@@ -73,6 +73,7 @@ impl AnekDirectoryType {
 }
 
 pub struct AnekDirectory {
+    pub proj_root: PathBuf,
     pub root: PathBuf,
 }
 
@@ -184,7 +185,10 @@ impl AnekDirectory {
         let root = wd.join(".anek");
         if root.exists() {
             if root.is_dir() {
-                Ok(Self { root })
+                Ok(Self {
+                    proj_root: wd.clone(),
+                    root,
+                })
             } else {
                 Err(Error::msg(format!("{:?} is not a directory", root)))
             }

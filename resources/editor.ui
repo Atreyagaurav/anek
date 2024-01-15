@@ -23,6 +23,7 @@
               <object class="GtkText" id="txt_browse">
                 <property name="width-chars">70</property>
                 <property name="hexpand">1</property>
+                <property name="editable">False</property>
               </object>
             </child>
             <child>

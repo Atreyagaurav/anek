@@ -4,7 +4,6 @@ use gtk::gdk::Key;
 use gtk::gdk::ModifierType;
 use gtk::gio::Settings;
 use gtk::AlertDialog;
-use gtk::Dialog;
 use gtk::EventControllerKey;
 use gtk::{gio::ApplicationFlags, Application, StringList, StringObject};
 use std::{
@@ -16,7 +15,7 @@ use std::path::PathBuf;
 
 use gtk::{gio, glib, prelude::*};
 
-const APP_ID: &str = "org.anek.AnekEditor";
+pub const APP_ID: &str = "org.anek.AnekEditor";
 
 pub fn run() -> anyhow::Result<()> {
     let app = Application::builder()
@@ -35,29 +34,24 @@ pub fn build_ui(application: &gtk::Application) {
     let ui_src = include_str!("../resources/editor.ui");
     let builder = gtk::Builder::from_string(ui_src);
 
+    macro_rules! load_ui {
+        ($l:ident, $t:ty) => {
+            let $l = builder
+                .object::<$t>(stringify!($l))
+                .expect(concat!("couldn't get: ", stringify!($l)));
+        };
+    }
+
     let window = builder
         .object::<gtk::ApplicationWindow>("window")
         .expect("Couldn't get window");
     window.set_application(Some(application));
-
-    let btn_browse = builder
-        .object::<gtk::Button>("btn_browse")
-        .expect("Couldn't get builder");
-    let txt_browse = builder
-        .object::<gtk::Text>("txt_browse")
-        .expect("Couldn't get builder");
-    let dd_file = builder
-        .object::<gtk::DropDown>("dd_file")
-        .expect("Couldn't get builder");
-    let btn_save = builder
-        .object::<gtk::Button>("btn_save")
-        .expect("Couldn't get builder");
-    let swt_save = builder
-        .object::<gtk::Switch>("swt_save")
-        .expect("Couldn't get builder");
-    let txt_file = builder
-        .object::<gtk::TextView>("txt_file")
-        .expect("Couldn't get text_view");
+    load_ui!(btn_browse, gtk::Button);
+    load_ui!(txt_browse, gtk::Text);
+    load_ui!(dd_file, gtk::DropDown);
+    load_ui!(btn_save, gtk::Button);
+    load_ui!(swt_save, gtk::Switch);
+    load_ui!(txt_file, gtk::TextView);
 
     btn_browse.connect_clicked(glib::clone!(@weak window, @weak txt_browse => move |_| {
 
@@ -199,6 +193,5 @@ pub fn build_ui(application: &gtk::Application) {
         _ => curr_path.to_string_lossy().to_string(),
     };
     txt_browse.set_text(&curr_path);
-    txt_browse.set_sensitive(false);
     window.present();
 }

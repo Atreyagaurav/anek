@@ -5,7 +5,7 @@
   <object class="GtkApplicationWindow" id="window">
     <property name="title" translatable="1">Anek Command Manager</property>
     <property name="default-width">500</property>
-    <property name="default-height">300</property>
+    <property name="default-height">500</property>
     <property name="icon-name">input-keyboard</property>
     <property name="child">
       <object class="GtkBox">
@@ -23,6 +23,7 @@
               <object class="GtkText" id="txt_browse">
                 <property name="width-chars">70</property>
                 <property name="hexpand">1</property>
+                <property name="editable">False</property>
               </object>
             </child>
             <child>
@@ -32,60 +33,297 @@
             </child>
           </object>
         </child>
-        <child>
-          <object class="GtkBox">
-            <child>
-              <object class="GtkDropDown" id="dd_command">
-                <property name="hexpand">1</property>
-		<property name="model">
-		  <object class="GtkStringList">
-		    <items>
-		      <item translatable="no">run</item>
-		      <item translatable="no">render</item>
-		      <item translatable="no">export</item>
-		    </items>
-		  </object>
-		</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkDropDown" id="dd_task">
-                <property name="hexpand">1</property>
+	<child>
+	  <!-- n-columns=2 n-rows=3 -->
+	  <object class="GtkGrid">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="row-spacing">5</property>
+            <property name="column-spacing">10</property>
+            <property name="row-homogeneous">False</property>
+            <property name="hexpand">1</property>
+	    <child>
+              <object class="GtkLabel">
+		<property name="visible">True</property>
+		<property name="can-focus">False</property>
+		<property name="valign">center</property>
+		<property name="label" translatable="yes">Inputs</property>
+		<layout>
+		  <property name="column">0</property>
+		  <property name="row">0</property>
+		</layout>
               </object>
             </child>
             <child>
               <object class="GtkLabel">
-                <property name="label" translatable="1">On</property>
-                <property name="width-chars">4</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkDropDown" id="dd_input">
-                <property name="hexpand">1</property>
+		<property name="visible">True</property>
+		<property name="can-focus">False</property>
+		<property name="valign">center</property>
+		<property name="label" translatable="yes">Task</property>
+		<layout>
+		  <property name="column">0</property>
+		  <property name="row">1</property>
+		</layout>
               </object>
             </child>
             <child>
               <object class="GtkButton" id="btn_execute">
-		<property name="label">Execute</property>
+		<property name="label" translatable="yes">Execute</property>
+		<property name="visible">True</property>
+		<property name="can-focus">True</property>
+		<property name="receives-default">True</property>
+		<property name="valign">center</property>
+		<layout>
+		  <property name="column">0</property>
+		  <property name="row">2</property>
+		</layout>
               </object>
             </child>
-          </object>
-        </child>
-        <child>
-          <object class="GtkScrolledWindow" id="scrolled_window">
-            <property name="hexpand">True</property>
-            <property name="vexpand">True</property>
             <child>
-          <object class="GtkTextView" id="txt_file">
-            <property name="vexpand">1</property>
-            <property name="focusable">1</property>
-            <property name="buffer">buf_file</property>
-            <property name="input-purpose">terminal</property>
-            <property name="monospace">1</property>
-          </object>
+              <object class="GtkNotebook" id="nb_input">
+		<property name="visible">True</property>
+		<property name="can-focus">True</property>
+                <property name="hexpand">1</property>
+		<child>
+		  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+		    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkDropDown" id="dd_input">
+			<property name="visible">True</property>
+			<property name="can-focus">False</property>
+			<property name="valign">start</property>
+                      </object>
+                    </child>
+		    <child>
+		      <object class="GtkScrolledWindow">
+			<property name="hexpand">True</property>
+			<property name="vexpand">True</property>
+			<child>
+			  <object class="GtkTextView" id="tv_input">
+			    <property name="visible">True</property>
+			    <property name="can-focus">True</property>
+			    <property name="editable">False</property>
+			    <property name="vexpand">1</property>
+			  </object>
+			</child>
+		      </object>
+		    </child>
+		  </object>
+		</child>
+		<child type="tab">
+		  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Inputs</property>
+		  </object>
+		</child>
+		
+		<child>
+		  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+		    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkDropDown" id="dd_batch">
+			<property name="visible">True</property>
+			<property name="can-focus">False</property>
+			<property name="valign">start</property>
+                      </object>
+                    </child>
+		    
+		    <child>
+		      <object class="GtkScrolledWindow">
+			<property name="hexpand">True</property>
+			<property name="vexpand">True</property>
+			<child>
+			  <object class="GtkTextView" id="tv_batch">
+			    <property name="visible">True</property>
+			    <property name="can-focus">True</property>
+			    <property name="editable">False</property>
+			    <property name="vexpand">1</property>
+			  </object>
+			</child>
+		      </object>
+		    </child>
+		  </object>
+		</child>
+		<child type="tab">
+		  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Batch</property>
+		  </object>
+		</child>
+		<child>
+		  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+		    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkDropDown" id="dd_loop">
+			<property name="visible">True</property>
+			<property name="can-focus">False</property>
+			<property name="valign">start</property>
+                      </object>
+                    </child>
+
+		    <child>
+		      <object class="GtkScrolledWindow">
+			<property name="hexpand">True</property>
+			<property name="vexpand">True</property>
+			<child>
+			  <object class="GtkTextView" id="tv_loop">
+			    <property name="visible">True</property>
+			    <property name="can-focus">True</property>
+			    <property name="editable">False</property>
+			    <property name="vexpand">1</property>
+			  </object>
+			</child>
+		      </object>
+		    </child>
+		  </object>
+		</child>
+		<child type="tab">
+		  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Loop</property>
+		  </object>
+		</child>
+		<layout>
+		  <property name="column">1</property>
+		  <property name="row">0</property>
+		</layout>
+              </object>
             </child>
-          </object>
-        </child>
+	    <child>
+              <object class="GtkNotebook" id="nb_task">
+		<property name="visible">True</property>
+		<property name="can-focus">True</property>
+                <property name="hexpand">1</property>
+		<child>
+		  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <child>
+                      <object class="GtkCheckButton" id="cb_pipeline">
+			<property name="label">Pipelines</property>
+			<property name="valign">start</property>
+		      </object>
+		    </child>
+                    <child>
+                      <object class="GtkDropDown" id="dd_command">
+			<property name="visible">True</property>
+			<property name="can-focus">False</property>
+			<property name="valign">start</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkScrolledWindow">
+			<property name="visible">True</property>
+			<property name="can-focus">True</property>
+			<child>
+			  <object class="GtkTextView">
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+			  </object>
+			</child>
+                      </object>
+                    </child>
+		  </object>
+		</child>
+		<child type="tab">
+		  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Run</property>
+		    <layout>
+                      <property name="tab-fill">False</property>
+		    </layout>
+		  </object>
+		</child>
+		<child>
+		  <object class="GtkBox">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <child>
+                      <object class="GtkDropDown" id="dd_variable">
+			<property name="visible">True</property>
+			<property name="can-focus">False</property>
+			<property name="valign">start</property>
+                      </object>
+                    </child>
+		    <child>
+		      <object class="GtkLabel">
+			<property name="label" translatable="1">TODO</property>
+			<property name="justify">right</property>
+			<property name="width-chars">8</property>
+		      </object>
+		    </child>
+		  </object>
+		</child>
+		
+		<child type="tab">
+		  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Export</property>
+		    <layout>
+                      <property name="position">1</property>
+                      <property name="tab-fill">False</property>
+		    </layout>
+		  </object>
+		</child>
+		<child>
+		  <object class="GtkLabel">
+                    <property name="label" translatable="1">TODO</property>
+                    <property name="justify">right</property>
+                    <property name="width-chars">8</property>
+		  </object>
+		</child>
+		<child type="tab">
+		  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Render</property>
+		    <layout>
+                      <property name="position">2</property>
+                      <property name="tab-fill">False</property>
+		    </layout>
+		  </object>
+		</child>
+		<layout>
+		  <property name="column">1</property>
+		  <property name="row">1</property>
+		</layout>
+	      </object>
+              
+            </child>
+            
+            <child>
+              <object class="GtkBox">
+		<property name="visible">True</property>
+		<property name="can-focus">False</property>
+		<property name="orientation">vertical</property>
+                <property name="hexpand">1</property>
+		<child>
+		  <object class="GtkText" id="txt_command">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="editable">False</property>
+                  </object>
+		</child>
+		<layout>
+		  <property name="column">1</property>
+		  <property name="row">2</property>
+		</layout>
+              </object>
+            </child>
+	  </object>
+	</child>
+	
       </object>
     </property>
   </object>
