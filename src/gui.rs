@@ -16,6 +16,15 @@ use std::{
 
 const APP_ID: &str = "org.zero.AnekGui";
 
+macro_rules! return_if_none {
+    ( $e:expr ) => {
+        match $e {
+            Some(x) => x,
+            None => return,
+        }
+    };
+}
+
 pub fn run() -> anyhow::Result<()> {
     let app = Application::builder()
         .flags(ApplicationFlags::HANDLES_OPEN)
@@ -62,6 +71,13 @@ pub fn build_ui(application: &gtk::Application) {
     load_ui!(cb_export_file, gtk::CheckButton);
     load_ui!(txt_export_file, gtk::Text);
     load_ui!(btn_export_file, gtk::Button);
+
+    // Render tab
+    load_ui!(dd_template, gtk::DropDown);
+    load_ui!(tv_template, gtk::TextView);
+    load_ui!(cb_template, gtk::CheckButton);
+    load_ui!(txt_template, gtk::Text);
+    load_ui!(btn_template, gtk::Button);
 
     // input notebook
     load_ui!(nb_input, gtk::Notebook);
@@ -111,7 +127,7 @@ pub fn build_ui(application: &gtk::Application) {
 	    }}));
 
     txt_browse.connect_changed(
-        glib::clone!(@weak window, @weak txt_browse, @weak dd_command, @weak dd_input, @weak dd_batch, @weak dd_loop, @weak cb_pipeline, @weak lb_variable => move |_| {
+        glib::clone!(@weak window, @weak txt_browse, @weak dd_template, @weak dd_command, @weak dd_input, @weak dd_batch, @weak dd_loop, @weak cb_pipeline, @weak lb_variable => move |_| {
                 let wd = PathBuf::from(txt_browse.text());
             if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
 		// dd_commands and pipelines can be filled from there.
@@ -125,6 +141,11 @@ pub fn build_ui(application: &gtk::Application) {
 		    lb_variable.append(&l);
 		});
 		    // lb_variable.set_model(Some(&variables));
+
+            let templates: StringList = variable::list_anek_filenames(
+                &anek.get_directory(&dtypes::AnekDirectoryType::Templates)
+            ).unwrap().into_iter().collect();
+		dd_template.set_model(Some(&templates));
 
             let inputs: StringList = variable::list_anek_filenames(
                 &anek.get_directory(&dtypes::AnekDirectoryType::Inputs)
@@ -141,11 +162,13 @@ pub fn build_ui(application: &gtk::Application) {
             ).unwrap().into_iter().collect();
 		    dd_loop.set_model(Some(&loops));
 
+            dd_template.set_sensitive(true);
             dd_input.set_sensitive(true);
             dd_batch.set_sensitive(true);
             dd_loop.set_sensitive(true);
             lb_variable.set_sensitive(true);
                 } else {
+            dd_template.set_sensitive(false);
             dd_input.set_sensitive(false);
             dd_batch.set_sensitive(false);
             dd_loop.set_sensitive(false);
@@ -154,7 +177,7 @@ pub fn build_ui(application: &gtk::Application) {
             }),
     );
     btn_execute.connect_clicked(
-        glib::clone!(@weak window, @weak dd_command, @weak txt_browse, @weak nb_task, @weak nb_input, @weak dd_input, @weak lb_variable, @weak dd_export_type, @weak dd_batch, @weak dd_loop, @weak cb_pipeline, @weak cb_export_file, @weak txt_export_file, @weak txt_command => move |_| {
+        glib::clone!(@weak window, @weak dd_command, @weak txt_browse, @weak nb_task, @weak nb_input, @weak dd_input, @weak lb_variable, @weak dd_export_type, @weak dd_batch, @weak dd_loop, @weak cb_pipeline, @weak cb_export_file, @weak txt_export_file, @weak txt_command, @weak dd_template, @weak cb_template, @weak txt_template => move |_| {
             let wd = PathBuf::from(txt_browse.text());
             if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
 		let inputs: InputsArgs = match nb_input.current_page() {
@@ -194,7 +217,20 @@ pub fn build_ui(application: &gtk::Application) {
 				);
 			crate::export::run_command(args, anek)
 		    },
-			    Some(2) => todo!(),
+			    Some(2) => {
+			let args = crate::render::CliArgs::from_gui(
+			    dd_template.selected_item().unwrap().downcast::<StringObject>().unwrap().string().to_string(),
+			    if cb_template.is_active(){
+				if txt_template.text().is_empty(){
+				    alert_diag(&window, "Output File Empty!");
+				    return;
+				}
+				Some(PathBuf::from(txt_template.text()))
+			    } else {None},
+			    run_utils::Inputs::On(inputs)
+			);
+			crate::render::run_command(args, anek)
+		    },
 			    _ => panic!("Only 3 tabs coded."),
 		};
 		match task_res {
@@ -311,6 +347,44 @@ pub fn build_ui(application: &gtk::Application) {
             });
         }),
     );
+
+    dd_template.connect_selected_item_notify(
+        glib::clone!(@weak txt_browse, @weak dd_template, @weak tv_template => move |_| {
+                    let wd = PathBuf::from(txt_browse.text());
+                    if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
+                let path = anek.get_file(&dtypes::AnekDirectoryType::Templates,
+                    &return_if_none!(dd_template.selected_item()).downcast::<gtk::StringObject>().unwrap().string()
+                );
+                let file = File::open(path).expect("Couldn't open file");
+                        let mut reader = BufReader::new(file);
+                        let mut contents = String::new();
+                        let _ = reader.read_to_string(&mut contents);
+                        tv_template.buffer().set_text(&contents);
+            }}
+            ),
+    );
+
+    btn_template.connect_clicked(
+        glib::clone!(@weak window, @weak txt_browse, @weak txt_template, @weak cb_template => move |_| {
+	    let filter = FileFilter::new();
+	    filter.add_mime_type("text/plain");
+
+            let dialog = gtk::FileDialog::builder()
+                .title("Save Rendered File")
+                .accept_label("Save")
+		.default_filter(&filter)
+                .initial_folder(&gio::File::for_path(txt_browse.text()))
+                .build();
+            dialog.save(Some(&window), gio::Cancellable::NONE, move |file| {
+                if let Ok(file) = file {
+                    let filename = file.path().expect("Couldn't get file path");
+		    txt_template.set_text(&filename.to_string_lossy());
+		    cb_template.set_active(true);
+                }
+            });
+        }),
+    );
+
     let settings = Settings::new(crate::editor::APP_ID);
     settings.bind("project-path", &txt_browse, "text").build();
     let curr_path = PathBuf::from(settings.string("project-path"));

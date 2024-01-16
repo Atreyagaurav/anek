@@ -325,13 +325,57 @@
 		    </layout>
 		  </object>
 		</child>
-		<child>
-		  <object class="GtkLabel">
-                    <property name="label" translatable="1">TODO</property>
-                    <property name="justify">right</property>
-                    <property name="width-chars">8</property>
-		  </object>
-		</child>
+		    <child>
+		      <object class="GtkBox">
+			<property name="orientation">vertical</property>
+			<property name="spacing">2</property>
+			<child>
+			  <object class="GtkDropDown" id="dd_template">
+			    <property name="valign">start</property>
+			    <property name="hexpand">1</property>
+			    <property name="enable-search">True</property>
+			    <property name="search-match-mode">substring</property>
+			    <property name="expression">
+			      <lookup type="GtkStringObject" name='string'></lookup>
+			    </property>
+			  </object>
+			</child>
+<child>
+                      <object class="GtkScrolledWindow">
+			<child>
+			  <object class="GtkTextView" id="tv_template">
+			    <property name="editable">False</property>
+			    <property name="vexpand">1</property>
+			    <property name="hexpand">1</property>
+			  </object>
+			</child>
+                      </object>
+</child>
+<child>
+			  <object class="GtkBox">
+			    <property name="spacing">10</property>
+			    <child>
+			      <object class="GtkCheckButton" id="cb_template">
+				<property name="label">To File:</property>
+				<property name="valign">start</property>
+			      </object>
+			    </child>
+			    <child>
+			      <object class="GtkText" id="txt_template">
+				<property name="width-chars">70</property>
+				<property name="hexpand">1</property>
+				<property name="editable">False</property>
+			      </object>
+			    </child>
+			    <child>
+			      <object class="GtkButton" id="btn_template">
+				<property name="label">Browse</property>
+			      </object>
+			    </child>
+			  </object>
+			</child>
+	  </object>
+	</child>
 		<child type="tab">
 		  <object class="GtkLabel">
                     <property name="label" translatable="yes">Render</property>
@@ -346,9 +390,7 @@
 		  <property name="row">1</property>
 		</layout>
 	      </object>
-              
             </child>
-            
             <child>
               <object class="GtkBox">
 		<property name="orientation">vertical</property>
@@ -367,7 +409,6 @@
             </child>
 	  </object>
 	</child>
-	
       </object>
     </property>
   </object>

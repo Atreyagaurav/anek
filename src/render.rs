@@ -4,6 +4,7 @@ use number_range::NumberRangeOptions;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use string_template_plus::{Render, RenderOptions, Template};
 
@@ -45,9 +46,24 @@ pub struct CliArgs {
     /// and `3:` is from line 3 to the end)
     #[arg(value_hint = ValueHint::FilePath)]
     file: String,
+    /// Output file for Rendered Results
+    #[arg(short, long, value_hint = ValueHint::Other)]
+    output: Option<PathBuf>,
 
     #[command(subcommand)]
     inputs: run_utils::Inputs,
+}
+
+impl CliArgs {
+    pub fn from_gui(template: String, output: Option<PathBuf>, inputs: run_utils::Inputs) -> Self {
+        Self {
+            template: false,
+            file: template,
+            output,
+            inputs,
+            ..Default::default()
+        }
+    }
 }
 
 enum RenderFileContentsType {
@@ -142,7 +158,15 @@ impl RenderFileContents {
         &self,
         inputs: Vec<HashMap<String, String>>,
         overwrite: &HashMap<String, String>,
+        output: Option<PathBuf>,
     ) -> Result<(), Error> {
+        let file = output.map(|f| File::create(f).unwrap());
+
+        let mut writer: Box<dyn Write> = match file {
+            Some(f) => Box::new(BufWriter::new(f)),
+            None => Box::new(std::io::stdout()),
+        };
+
         for part in &self.contents {
             match part {
                 RenderFileContentsType::Include(filename, lines) => {
@@ -157,10 +181,10 @@ impl RenderFileContents {
                         .with_default_end(reader_lines.len())
                         .parse(lines)?;
                     for l in lines {
-                        println!("{}", reader_lines[l - 1]);
+                        writeln!(writer, "{}", reader_lines[l - 1])?;
                     }
                 }
-                RenderFileContentsType::Literal(s) => print!("{}", s),
+                RenderFileContentsType::Literal(s) => write!(writer, "{}", s)?,
                 RenderFileContentsType::Snippet(templ, batch) => {
                     if let Some(batch) = batch {
                         let ad = AnekDirectory::from(&PathBuf::default())?;
@@ -173,7 +197,7 @@ impl RenderFileContents {
                                 wd: PathBuf::default(),
                                 shell_commands: true,
                             };
-                            print!("{}", templ.render(&renderops)?);
+                            write!(writer, "{}", templ.render(&renderops)?)?;
                         }
                     } else {
                         for input in &inputs {
@@ -182,7 +206,7 @@ impl RenderFileContents {
                                 wd: PathBuf::default(),
                                 shell_commands: true,
                             };
-                            print!("{}", templ.render(&renderops)?);
+                            write!(writer, "{}", templ.render(&renderops)?)?;
                         }
                     }
                 }
@@ -213,6 +237,6 @@ pub fn run_command(args: CliArgs, anek_dir: AnekDirectory) -> Result<(), Error> 
         .iter()
         .map(|inp| -> Result<_, Error> { run_utils::variables_from_input(inp, &overwrite) })
         .collect::<Result<Vec<_>, Error>>()?;
-    template.print_render(variables, &overwrite)?;
+    template.print_render(variables, &overwrite, args.output)?;
     Ok(())
 }
