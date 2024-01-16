@@ -57,6 +57,7 @@
 		      <item translatable="no">Variable</item>
 		      <item translatable="no">Command</item>
 		      <item translatable="no">Pipeline</item>
+		      <item translatable="no">Template</item>
 		      <item translatable="no">Input</item>
 		      <item translatable="no">Batch</item>
 		      <item translatable="no">Loop</item>

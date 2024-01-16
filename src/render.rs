@@ -4,19 +4,25 @@ use number_range::NumberRangeOptions;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use string_template_plus::{Render, RenderOptions, Template};
 
-use crate::dtypes::AnekDirectory;
+use crate::dtypes::{AnekDirectory, AnekDirectoryType};
 use crate::run_utils::{self, variables_from_input};
 
 #[derive(Args)]
 pub struct CliArgs {
     /// Render the given template like command templates
     ///
-    /// Renders a template. You pass template instead of file.
+    /// Renders a template. You pass template from the CLI.
     #[arg(short, long, group="action", value_hint = ValueHint::Other)]
     template: bool,
+    /// Render the given file like command templates
+    ///
+    /// Renders a template from file. You pass template file from
+    /// outside instead of anek template.
+    #[arg(short, long, group="action", value_hint = ValueHint::Other)]
+    input_file: bool,
     /// Render the given file like command templates
     ///
     /// Renders a file. Just write the file anywhere in your path with
@@ -71,13 +77,14 @@ fn insert_till_now(
 }
 
 impl RenderFileContents {
-    fn read_file(filename: &str) -> Result<Self, Error> {
-        let file = match File::open(&filename) {
+    fn read_file(filename: &Path) -> Result<Self, Error> {
+        let file = match File::open(filename) {
             Ok(f) => f,
             Err(e) => {
                 return Err(Error::msg(format!(
                     "Couldn't open input file: {:?}\n{:?}",
-                    &filename, e
+                    filename.to_string_lossy(),
+                    e
                 )))
             }
         };
@@ -189,8 +196,14 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from_pwd()?;
     let template = if args.template {
         RenderFileContents::snippet(&args.file, None)?
+    } else if args.input_file {
+        RenderFileContents::read_file(args.file.as_ref())?
     } else {
-        RenderFileContents::read_file(&args.file)?
+        RenderFileContents::read_file(
+            anek_dir
+                .get_file(&AnekDirectoryType::Templates, &args.file)
+                .as_ref(),
+        )?
     };
 
     let cmd_args = run_utils::command_args(&args.inputs);

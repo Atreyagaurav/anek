@@ -14,6 +14,7 @@ pub enum AnekDirectoryType {
     Inputs,
     Commands,
     Pipelines,
+    Templates,
     Loops,
     Batch,
 }
@@ -25,6 +26,7 @@ impl AnekDirectoryType {
             AnekDirectoryType::Inputs => "inputs",
             AnekDirectoryType::Commands => "commands",
             AnekDirectoryType::Pipelines => "pipelines",
+            AnekDirectoryType::Templates => "templates",
             AnekDirectoryType::Loops => "loops",
             AnekDirectoryType::Batch => "batch",
         }
@@ -54,6 +56,12 @@ impl AnekDirectoryType {
                 "Pipelines are sequence of commands.\n\n",
                 "Pipeline execution will run the sequence of commands one after ",
                 "another in the given order using the same input variables to render."
+            ),
+            AnekDirectoryType::Templates => concat!(
+                "Templates are files that can be rendered using inputs.\n\n",
+                "The inputs can be using any inputs or batch or loops, the template ",
+                "files can have text surrounded by clippers `----8<----` to denote ",
+                "only some lines are repeated for inputs while rendering."
             ),
             AnekDirectoryType::Loops => concat!(
                 "Loops loop through mutiple variables' values.\n\n",
@@ -283,6 +291,7 @@ pub fn anekdirtype_iter() -> Iter<'static, AnekDirectoryType> {
         AnekDirectoryType::Variables,
         AnekDirectoryType::Inputs,
         AnekDirectoryType::Commands,
+        AnekDirectoryType::Templates,
         AnekDirectoryType::Pipelines,
         AnekDirectoryType::Loops,
         AnekDirectoryType::Batch,

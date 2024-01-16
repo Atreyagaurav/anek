@@ -123,6 +123,7 @@ pub fn build_ui(application: &gtk::Application) {
 	    "Variable" => dtypes::AnekDirectoryType::Variables,
 	    "Command" => dtypes::AnekDirectoryType::Commands,
 	    "Pipeline" => dtypes::AnekDirectoryType::Pipelines,
+	    "Template" => dtypes::AnekDirectoryType::Templates,
 	    "Input" => dtypes::AnekDirectoryType::Inputs,
 	    "Batch" => dtypes::AnekDirectoryType::Batch,
 	    "Loop" => dtypes::AnekDirectoryType::Loops,
@@ -135,8 +136,7 @@ pub fn build_ui(application: &gtk::Application) {
 		    alert_diag(&window, "Loop requires subfolders!");
 		    return;
 		}},
-			&dtypes::AnekDirectoryType::Inputs => (),
-		    &dtypes::AnekDirectoryType::Variables => {
+		    &dtypes::AnekDirectoryType::Variables | &dtypes::AnekDirectoryType::Templates => {
 			if cb_newfile_sub.is_active(){
 		    alert_diag(&window, "Subfolders not supported!");
 		    return;

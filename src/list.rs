@@ -40,6 +40,11 @@ pub struct CliArgs {
     /// List the pipelines files.
     #[arg(short, long, group = "anek-type", action)]
     pipeline: bool,
+    /// Templates
+    ///
+    /// List the templates files.
+    #[arg(short, long, group = "anek-type", action)]
+    template: bool,
     /// Loops
     ///
     /// List the files in loop directory,
@@ -78,6 +83,8 @@ pub fn list_options(args: CliArgs) -> Result<(), Error> {
         Some(AnekDirectoryType::Commands)
     } else if args.pipeline {
         Some(AnekDirectoryType::Pipelines)
+    } else if args.template {
+        Some(AnekDirectoryType::Templates)
     } else {
         None
     };
