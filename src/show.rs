@@ -13,12 +13,14 @@ pub struct CliArgs {
     /// the same ones from `anek list` command output
     #[arg(value_hint = ValueHint::Other)]
     anek_file: String,
-    #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
-    path: PathBuf,
+    #[arg(value_hint=ValueHint::DirPath)]
+    path: Option<PathBuf>,
 }
 
-pub fn show_file(args: CliArgs) -> Result<(), Error> {
-    let filepath = AnekDirectory::from(&args.path)?.root.join(&args.anek_file);
+pub fn show_file(args: CliArgs, path: PathBuf) -> Result<(), Error> {
+    let filepath = AnekDirectory::from(&args.path.unwrap_or(path))?
+        .root
+        .join(&args.anek_file);
 
     let contents = std::fs::read_to_string(filepath)?;
     if args

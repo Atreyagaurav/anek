@@ -122,6 +122,7 @@ impl Command {
         variables: &HashMap<String, String>,
         demo: bool,
         pipable: bool,
+        cwd: &PathBuf,
     ) -> Result<(), Error> {
         let cmd = self.render(variables.clone())?;
         if pipable {
@@ -129,7 +130,7 @@ impl Command {
         } else {
             self.print(&cmd);
             if !demo {
-                Exec::shell(cmd).join()?;
+                Exec::shell(cmd).cwd(cwd).join()?;
             }
         }
         Ok(())
@@ -208,10 +209,6 @@ impl AnekDirectory {
                 Err(Error::msg("No .anek configuration in the current path"))
             }
         }
-    }
-
-    pub fn from_pwd() -> Result<Self, Error> {
-        Self::from(&PathBuf::from("."))
     }
 
     pub fn new(wd: &PathBuf) -> Result<Self, Error> {

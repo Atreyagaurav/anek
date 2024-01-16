@@ -192,8 +192,7 @@ impl RenderFileContents {
     }
 }
 
-pub fn run_command(args: CliArgs) -> Result<(), Error> {
-    let anek_dir = AnekDirectory::from_pwd()?;
+pub fn run_command(args: CliArgs, anek_dir: AnekDirectory) -> Result<(), Error> {
     let template = if args.template {
         RenderFileContents::snippet(&args.file, None)?
     } else if args.input_file {

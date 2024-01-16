@@ -14,12 +14,12 @@ pub struct CliArgs {
     /// once you have input files with some variables.
     #[arg(short, long, value_delimiter = ',')]
     variables: Vec<String>,
-    #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
-    path: PathBuf,
+    #[arg(value_hint=ValueHint::DirPath)]
+    path: Option<PathBuf>,
 }
 
-pub fn new_config(args: CliArgs) -> Result<(), anyhow::Error> {
-    let ad = AnekDirectory::new(&args.path)?;
+pub fn new_config(args: CliArgs, path: PathBuf) -> Result<(), anyhow::Error> {
+    let ad = AnekDirectory::new(&args.path.unwrap_or(path))?;
 
     for var in args.variables {
         File::create(ad.get_file(&AnekDirectoryType::Variables, &var))?;

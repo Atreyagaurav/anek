@@ -60,12 +60,12 @@ pub struct CliArgs {
     /// Do not skip files inside .d directories
     #[arg(short, long, action)]
     all: bool,
-    #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
-    path: PathBuf,
+    #[arg(value_hint = ValueHint::DirPath)]
+    path: Option<PathBuf>,
 }
 
-pub fn list_options(args: CliArgs) -> Result<(), Error> {
-    let anek_dir = AnekDirectory::from(&args.path)?;
+pub fn list_options(args: CliArgs, path: PathBuf) -> Result<(), Error> {
+    let anek_dir = AnekDirectory::from(&args.path.unwrap_or(path))?;
     let list_func = if args.all {
         variable::list_filenames
     } else {

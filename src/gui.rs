@@ -156,7 +156,7 @@ pub fn build_ui(application: &gtk::Application) {
     btn_execute.connect_clicked(
         glib::clone!(@weak window, @weak dd_command, @weak txt_browse, @weak nb_task, @weak nb_input, @weak dd_input, @weak lb_variable, @weak dd_export_type, @weak dd_batch, @weak dd_loop, @weak cb_pipeline, @weak cb_export_file, @weak txt_export_file, @weak txt_command => move |_| {
             let wd = PathBuf::from(txt_browse.text());
-            if let Ok(_) = dtypes::AnekDirectory::from(&wd){
+            if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
 		let inputs: InputsArgs = match nb_input.current_page() {
 			    Some(0) => InputsArgs::input(vec![dd_input.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string()]),
 			    Some(1) => InputsArgs::batch(vec![dd_batch.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string()]),
@@ -170,7 +170,7 @@ pub fn build_ui(application: &gtk::Application) {
 			    dd_command.selected_item().map(|i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string(),
 			    run_utils::Inputs::On(inputs)
 			);
-			crate::run::run_command(args)
+			crate::run::run_command(args, anek)
 		    }
 		    Some(1) => {
 			let safe = cb_variable_safe.is_active();
@@ -191,7 +191,7 @@ pub fn build_ui(application: &gtk::Application) {
 				// }else{
 				//     "".to_string()
 				// }
-			crate::export::run_command(args)
+			crate::export::run_command(args, anek)
 		    },
 			    Some(2) => todo!(),
 			    _ => panic!("Only 3 tabs coded."),
@@ -201,6 +201,7 @@ pub fn build_ui(application: &gtk::Application) {
 		    Err(e) => {
 			println!("{}", "-".repeat(20).red());
 			println!("{}: {:?}", "Error".on_red(), e);
+			alert_diag(&window, &e.to_string());
 			println!("{}", "-".repeat(20).red());
 		    }
 		}

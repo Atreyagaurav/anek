@@ -1,7 +1,8 @@
-use anyhow::Error;
+use anyhow::{Error, Result};
 use chrono::Local;
 use clap::{CommandFactory, Parser, Subcommand};
 use colored::Colorize;
+use std::path::PathBuf;
 use std::time::Instant;
 
 mod completions;
@@ -30,6 +31,9 @@ struct Cli {
     /// outputs.
     #[arg(short, long)]
     quiet: bool,
+    /// Path to run this on
+    #[arg(short, long, default_value = ".")]
+    path: PathBuf,
     /// Command to run
     ///
     /// Any command that you want to run, all the args after this will
@@ -108,30 +112,37 @@ enum Action {
     Graph(graph::CliArgs),
 }
 
+impl Action {
+    pub fn run(self, path: PathBuf) -> Result<()> {
+        let anek_dir = dtypes::AnekDirectory::from(&path);
+        match self {
+            Action::Gui => gui::run(),
+            Action::Editor => editor::run(),
+            Action::New(args) => new::new_config(args, path),
+            Action::Variable(args) => variable::run_command(args, anek_dir?),
+            Action::List(args) => list::list_options(args, path),
+            Action::Edit(args) => edit::edit_file(args, path),
+            Action::Export(args) => export::run_command(args, anek_dir?),
+            Action::Run(args) => run::run_command(args, anek_dir?),
+            Action::Render(args) => render::run_command(args, anek_dir?),
+            Action::Completions(args) => {
+                let mut clap_app = Cli::command();
+                completions::print_completions(args, &mut clap_app)
+            }
+            Action::Report(args) => report::save_report(args, path),
+            Action::View(args) => view::cmd(args, path),
+            Action::Show(args) => show::show_file(args, path),
+            Action::Graph(args) => graph::print_dot(args, path),
+        }
+    }
+}
+
 fn main() {
     let g_args = Cli::parse();
 
     let start_time = Local::now().format("%Y-%m-%d %H:%M:%S");
     let start = Instant::now();
-    let action_result: Result<(), Error> = match g_args.action {
-        Action::Gui => gui::run(),
-        Action::Editor => editor::run(),
-        Action::New(args) => new::new_config(args),
-        Action::Variable(args) => variable::run_command(args),
-        Action::List(args) => list::list_options(args),
-        Action::Edit(args) => edit::edit_file(args),
-        Action::Export(args) => export::run_command(args),
-        Action::Run(args) => run::run_command(args),
-        Action::Render(args) => render::run_command(args),
-        Action::Completions(args) => {
-            let mut clap_app = Cli::command();
-            completions::print_completions(args, &mut clap_app)
-        }
-        Action::Report(args) => report::save_report(args),
-        Action::View(args) => view::cmd(args),
-        Action::Show(args) => show::show_file(args),
-        Action::Graph(args) => graph::print_dot(args),
-    };
+    let action_result: Result<(), Error> = g_args.action.run(g_args.path);
     let duration = start.elapsed();
 
     if let Err(e) = action_result {

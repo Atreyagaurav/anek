@@ -27,8 +27,8 @@ pub struct CliArgs {
     /// Add urls to the nodes to the corresponding file/dir
     #[arg(short, long, action)]
     urls: bool,
-    #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
-    path: PathBuf,
+    #[arg(value_hint=ValueHint::DirPath)]
+    path: Option<PathBuf>,
 }
 
 lazy_static! {
@@ -41,8 +41,8 @@ lazy_static! {
     ]);
 }
 
-pub fn print_dot(args: CliArgs) -> Result<(), Error> {
-    let filepath = AnekDirectory::from(&args.path)?;
+pub fn print_dot(args: CliArgs, path: PathBuf) -> Result<(), Error> {
+    let filepath = AnekDirectory::from(&args.path.unwrap_or(path))?;
     println!("digraph anek{{");
     println!("rank=LR;");
     println!("overlap=prism; overlap_scaling=-3.5;");

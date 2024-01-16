@@ -6,12 +6,12 @@ use crate::dtypes::AnekDirectory;
 
 #[derive(Args)]
 pub struct CliArgs {
-    #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
-    path: PathBuf,
+    #[arg(value_hint = ValueHint::DirPath)]
+    path: Option<PathBuf>,
 }
 
-pub fn cmd(args: CliArgs) -> Result<(), Error> {
-    let anek_dir = AnekDirectory::from(&args.path)?;
+pub fn cmd(args: CliArgs, path: PathBuf) -> Result<(), Error> {
+    let anek_dir = AnekDirectory::from(&args.path.unwrap_or(path))?;
     println!("{:?}", anek_dir.root);
     Ok(())
 }

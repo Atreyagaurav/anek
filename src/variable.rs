@@ -408,8 +408,7 @@ pub fn compact_lines_from_anek_file(
     Ok(lines)
 }
 
-pub fn run_command(args: CliArgs) -> Result<(), Error> {
-    let anek_dir = AnekDirectory::from(&args.path)?;
+pub fn run_command(args: CliArgs, anek_dir: AnekDirectory) -> Result<(), Error> {
     let mut vars: HashSet<&str> = HashSet::new();
     let inp_lines: Vec<Vec<(usize, String)>>;
     let cmd_lines: Vec<Vec<(usize, String)>>;

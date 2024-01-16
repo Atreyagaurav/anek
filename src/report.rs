@@ -14,8 +14,8 @@ pub struct CliArgs {
     #[arg(short, long, default_value = "anek_report", value_hint=ValueHint::FilePath)]
     filename: PathBuf,
     /// Anek Directory Path
-    #[arg(default_value = ".", value_hint=ValueHint::DirPath)]
-    path: PathBuf,
+    #[arg(value_hint=ValueHint::DirPath)]
+    path: Option<PathBuf>,
 }
 
 fn capitalize(s: &str) -> String {
@@ -59,8 +59,8 @@ pub fn generate_report(anekdir: AnekDirectory) -> Result<String, Error> {
     Ok(report)
 }
 
-pub fn save_report(args: CliArgs) -> Result<(), Error> {
-    let filepath = AnekDirectory::from(&args.path)?;
+pub fn save_report(args: CliArgs, path: PathBuf) -> Result<(), Error> {
+    let filepath = AnekDirectory::from(args.path.as_ref().unwrap_or(&path))?;
     if !filepath.root.exists() {
         return Err(Error::msg(format!(
             "The path {:?} doesn't have anek configuration",

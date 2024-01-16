@@ -117,9 +117,7 @@ impl ExportWrapers {
     }
 }
 
-pub fn run_command(args: CliArgs) -> Result<(), Error> {
-    let anek_dir = AnekDirectory::from_pwd()?;
-
+pub fn run_command(args: CliArgs, anek_dir: AnekDirectory) -> Result<(), Error> {
     let wrappers = ExportWrapers::from_name(&args.format, &args.variables)?;
     let cmd_args = run_utils::command_args(&args.inputs);
     let overwrite: HashMap<String, String> = run_utils::overwrite_vars(&args.inputs, &cmd_args)?;

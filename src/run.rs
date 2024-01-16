@@ -50,8 +50,7 @@ impl CliArgs {
     }
 }
 
-pub fn run_command(args: CliArgs) -> Result<(), Error> {
-    let anek_dir = AnekDirectory::from_pwd()?;
+pub fn run_command(args: CliArgs, anek_dir: AnekDirectory) -> Result<(), Error> {
     let commands = if args.template {
         vec![Command::new("-T-", &args.command)?]
     } else if args.pipeline {
@@ -80,7 +79,7 @@ pub fn run_command(args: CliArgs) -> Result<(), Error> {
         }
         let variables = run_utils::variables_from_input(input, &overwrite)?;
         for cmd in &commands {
-            cmd.run(&variables, args.demo, args.pipable)?;
+            cmd.run(&variables, args.demo, args.pipable, &anek_dir.proj_root)?;
         }
     }
     Ok(())
