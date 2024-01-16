@@ -134,11 +134,11 @@ fn main() {
     };
     let duration = start.elapsed();
 
-    if g_args.quiet {
-        return;
-    }
     if let Err(e) = action_result {
         eprintln!("{}: {}", "Error".bright_red(), e);
+    }
+    if g_args.quiet {
+        return;
     }
     eprintln!("{:12}: {}", "Started at".bright_blue().bold(), start_time);
     eprintln!("{:12}: {:?}", "Time Elapsed".bright_blue().bold(), duration);

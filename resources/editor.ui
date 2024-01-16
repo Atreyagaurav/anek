@@ -9,9 +9,15 @@
     <property name="icon-name">input-keyboard</property>
     <property name="child">
       <object class="GtkBox">
+	<property name="margin-start">10</property>
+	<property name="margin-end">10</property>
+	<property name="margin-top">10</property>
+	<property name="margin-bottom">10</property>
         <property name="orientation">vertical</property>
+	<property name="spacing">10</property>
         <child>
           <object class="GtkBox">
+	    <property name="spacing">10</property>
             <child>
               <object class="GtkLabel">
                 <property name="label" translatable="1">Project:</property>
@@ -21,7 +27,7 @@
             </child>
             <child>
               <object class="GtkText" id="txt_browse">
-                <property name="width-chars">70</property>
+                <property name="width-chars">50</property>
                 <property name="hexpand">1</property>
                 <property name="editable">False</property>
               </object>
@@ -35,6 +41,60 @@
         </child>
         <child>
           <object class="GtkBox">
+	    <property name="spacing">10</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="1">New File:</property>
+                <property name="width-chars">8</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkDropDown" id="dd_filetype">
+                <property name="hexpand">1</property>		
+		<property name="model">
+		  <object class="GtkStringList">
+		    <items>
+		      <item translatable="no">Variable</item>
+		      <item translatable="no">Command</item>
+		      <item translatable="no">Pipeline</item>
+		      <item translatable="no">Input</item>
+		      <item translatable="no">Batch</item>
+		      <item translatable="no">Loop</item>
+		    </items>
+		  </object>
+		</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkEntry" id="txt_newfile">
+                <property name="width-chars">20</property>
+                <property name="hexpand">1</property>
+                <property name="editable">True</property>
+              </object>
+            </child>
+	    <child>
+	      <object class="GtkCheckButton" id="cb_newfile_sub">
+		<property name="label">subfolder</property>
+		<property name="valign">start</property>
+	      </object>
+	    </child>
+            <child>
+              <object class="GtkEntry" id="txt_newfile_sub">
+                <property name="width-chars">15</property>
+                <property name="hexpand">1</property>
+                <property name="editable">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="btn_savenew">
+		<property name="label">Create</property>
+              </object>
+            </child>
+          </object>
+        </child>
+	<child>
+          <object class="GtkBox">
+	    <property name="spacing">10</property>
             <child>
               <object class="GtkLabel">
                 <property name="label" translatable="1">File:</property>
@@ -44,6 +104,11 @@
             <child>
               <object class="GtkDropDown" id="dd_file">
                 <property name="hexpand">1</property>
+		<property name="enable-search">True</property>
+		<property name="search-match-mode">substring</property>
+		<property name="expression">
+		  <lookup type="GtkStringObject" name='string'></lookup>
+		</property>
               </object>
             </child>
             <child>

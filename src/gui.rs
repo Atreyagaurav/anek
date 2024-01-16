@@ -3,9 +3,9 @@ use crate::dtypes::AnekDirectoryType;
 use crate::variable;
 use colored::Colorize;
 use gtk::gio::Settings;
-use gtk::AlertDialog;
-use gtk::{gio, glib, prelude::*};
+use gtk::{gio, glib, prelude::*, Align, Label};
 use gtk::{gio::ApplicationFlags, Application, StringList, StringObject};
+use gtk::{AlertDialog, FileFilter};
 use itertools::Itertools;
 use std::path::PathBuf;
 use std::{
@@ -48,11 +48,19 @@ pub fn build_ui(application: &gtk::Application) {
     load_ui!(btn_browse, gtk::Button);
     load_ui!(txt_browse, gtk::Text);
 
-    // task notebook
     load_ui!(nb_task, gtk::Notebook);
+    // command tab
     load_ui!(cb_pipeline, gtk::CheckButton);
     load_ui!(dd_command, gtk::DropDown);
-    load_ui!(dd_variable, gtk::DropDown);
+
+    // export tab
+    load_ui!(lb_variable, gtk::ListBox);
+    load_ui!(cb_variable_safe, gtk::CheckButton);
+    load_ui!(cb_variable_all, gtk::CheckButton);
+    load_ui!(dd_export_type, gtk::DropDown);
+    load_ui!(cb_export_file, gtk::CheckButton);
+    load_ui!(txt_export_file, gtk::Text);
+    load_ui!(btn_export_file, gtk::Button);
 
     // input notebook
     load_ui!(nb_input, gtk::Notebook);
@@ -65,6 +73,7 @@ pub fn build_ui(application: &gtk::Application) {
 
     load_ui!(btn_execute, gtk::Button);
     load_ui!(txt_command, gtk::Text);
+    load_ui!(tv_command, gtk::TextView);
 
     btn_browse.connect_clicked(glib::clone!(@weak window, @weak txt_browse => move |_| {
 
@@ -94,7 +103,6 @@ pub fn build_ui(application: &gtk::Application) {
 			    &dtypes::AnekDirectoryType::Commands
 			})).unwrap();
         let tasks: StringList = tasks.into_iter().collect();
-        dd_command.set_enable_search(true);
 		dd_command.set_model(Some(&tasks));
 		dd_command.set_sensitive(true);
 	    } else {
@@ -102,7 +110,7 @@ pub fn build_ui(application: &gtk::Application) {
 	    }}));
 
     txt_browse.connect_changed(
-        glib::clone!(@weak window, @weak txt_browse, @weak dd_command, @weak dd_input, @weak dd_batch, @weak dd_loop, @weak cb_pipeline => move |_| {
+        glib::clone!(@weak window, @weak txt_browse, @weak dd_command, @weak dd_input, @weak dd_batch, @weak dd_loop, @weak cb_pipeline, @weak lb_variable => move |_| {
                 let wd = PathBuf::from(txt_browse.text());
             if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
 		// dd_commands and pipelines can be filled from there.
@@ -110,9 +118,12 @@ pub fn build_ui(application: &gtk::Application) {
             let variables = variable::list_anek_filenames(
                 &anek.get_directory(&dtypes::AnekDirectoryType::Variables)
             ).unwrap();
-            let variables: StringList = variables.into_iter().collect();
-            dd_variable.set_enable_search(true);
-		    dd_variable.set_model(Some(&variables));
+		variables.iter().for_each(|v| {
+		    let l = Label::new(Some(v));
+		    l.set_halign(Align::Start);
+		    lb_variable.append(&l);
+		});
+		    // lb_variable.set_model(Some(&variables));
 
             let inputs: StringList = variable::list_anek_filenames(
                 &anek.get_directory(&dtypes::AnekDirectoryType::Inputs)
@@ -129,50 +140,66 @@ pub fn build_ui(application: &gtk::Application) {
             ).unwrap().into_iter().collect();
 		    dd_loop.set_model(Some(&loops));
 
-            dd_input.set_enable_search(true);
-            dd_batch.set_enable_search(true);
-            dd_loop.set_enable_search(true);
-            dd_variable.set_enable_search(true);
             dd_input.set_sensitive(true);
             dd_batch.set_sensitive(true);
             dd_loop.set_sensitive(true);
-            dd_variable.set_sensitive(true);
+            lb_variable.set_sensitive(true);
                 } else {
             dd_input.set_sensitive(false);
             dd_batch.set_sensitive(false);
             dd_loop.set_sensitive(false);
-            dd_variable.set_sensitive(false);
+            lb_variable.set_sensitive(false);
             }
             }),
     );
     btn_execute.connect_clicked(
-        glib::clone!(@weak window, @weak dd_command, @weak txt_browse, @weak nb_task, @weak nb_input, @weak dd_input, @weak dd_batch, @weak dd_loop, @weak cb_pipeline, @weak txt_command => move |_| {
+        glib::clone!(@weak window, @weak dd_command, @weak txt_browse, @weak nb_task, @weak nb_input, @weak dd_input, @weak lb_variable, @weak dd_export_type, @weak dd_batch, @weak dd_loop, @weak cb_pipeline, @weak cb_export_file, @weak txt_export_file, @weak txt_command => move |_| {
             let wd = PathBuf::from(txt_browse.text());
             if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
+		let task: String = match nb_task.current_page() {
+			    Some(0) => format!("run {} {}",
+					      if cb_pipeline.is_active() {
+						  "--pipeline"
+					      } else {
+						  ""
+					      },
+					      dd_command.selected_item().map(|i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
+		    Some(1) => {
+			let safe = cb_variable_safe.is_active();
+			let variables = lb_variable.selected_rows().iter().map(|r| {
+			    r.child().unwrap().downcast::<Label>().unwrap().label().to_string()}).map(|l| if safe {format!("{l}?")
+			} else {l}).join(",");
+			format!("export --format {} --variables {}{}",
+				dd_export_type.selected_item().unwrap().downcast::<StringObject>().unwrap().string().to_string().to_ascii_lowercase(),
+				variables,
+				if cb_export_file.is_active() {
+				    if txt_export_file.text().is_empty(){
+					alert_diag(&window, "Empty Output File");
+					return;
+				    }
+				    format!(" > {}", txt_export_file.text())
+				}else{
+				    "".to_string()
+				})
+		    },
+			    Some(2) => format!("render"),
+			    _ => panic!("Only 3 tabs coded."),
+			};
+		let input: String = match nb_input.current_page() {
+			    Some(0) => format!("--input {}", dd_input.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
+			    Some(1) => format!("--batch {}", dd_batch.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
+			    Some(2) => format!("--loop {}", dd_loop.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
+			    _ => panic!("Only 3 tabs coded."),
+			};
 		let cmd: String =
-		    format!(
-			"anek -q {} {} {} on {}",
-			match nb_task.current_page() {
-			    Some(0) => "run",
-			    Some(1) => "export",
-			    Some(2) => "render",
-			    _ => panic!("Only 3 tabs coded."),
-			},
-			// tasks
-			if cb_pipeline.is_active() {"-p"} else {""},
-			dd_command.selected_item().map(|i| i.downcast::<StringObject>().unwrap().string()).unwrap(),
-			// inputs
-			match nb_input.current_page() {
-			    Some(0) => format!("-i {}", dd_input.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
-			    Some(1) => format!("-b {}", dd_batch.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
-			    Some(2) => format!("-l {}", dd_loop.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
-			    _ => panic!("Only 3 tabs coded."),
-			},
-		    );
+		    format!("anek --quiet {} on {}", task, input);
 		txt_command.set_text(&cmd);
-		println!("{} {:?}", "Subprocess Result:".on_blue(), subprocess::Exec::shell(cmd).cwd(anek.proj_root).join());
+		match subprocess::Exec::shell(cmd).cwd(anek.proj_root).join() {
+		    Ok(_) => println!("{}", "-".repeat(20).blue()),
+		    Err(_) => println!("{}", "-".repeat(20).red())
+		}
         } else {
-        invalid_anek_dir_warning(&window);
+        alert_diag(&window, "Invalid Anek Projecect Directory!");
         }
         }),
     );
@@ -225,6 +252,57 @@ pub fn build_ui(application: &gtk::Application) {
         ),
     );
 
+    dd_command.connect_selected_item_notify(
+        glib::clone!(@weak txt_browse, @weak dd_command, @weak tv_command => move |_| {
+                let wd = PathBuf::from(txt_browse.text());
+                if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
+		    let path = anek.get_file(
+			if cb_pipeline.is_active() {
+			    &dtypes::AnekDirectoryType::Pipelines
+			} else {
+			    &dtypes::AnekDirectoryType::Commands
+			},
+                &dd_command.selected_item().unwrap().downcast::<gtk::StringObject>().unwrap().string()
+            );
+            let file = File::open(path).expect("Couldn't open file");
+                    let mut reader = BufReader::new(file);
+                    let mut contents = String::new();
+                    let _ = reader.read_to_string(&mut contents);
+                    tv_command.buffer().set_text(&contents);
+            }}
+        ),
+    );
+
+    cb_variable_all.connect_active_notify(glib::clone!(@weak lb_variable => move |cv_variable| {
+        if cv_variable.is_active() {
+            lb_variable.select_all();
+        }else{
+            lb_variable.unselect_all();
+        }
+    }));
+
+    btn_export_file.connect_clicked(
+        glib::clone!(@weak window, @weak txt_browse, @weak dd_export_type, @weak txt_export_file, @weak cb_export_file => move |_| {
+	    let mime = format!("text/{}", dd_export_type.selected_item().unwrap().downcast::<StringObject>().unwrap().string().to_string().to_ascii_lowercase());
+
+	    let filter = FileFilter::new();
+	    filter.add_mime_type(&mime);
+
+            let dialog = gtk::FileDialog::builder()
+                .title("Export File")
+                .accept_label("Save")
+		.default_filter(&filter)
+                .initial_folder(&gio::File::for_path(txt_browse.text()))
+                .build();
+            dialog.save(Some(&window), gio::Cancellable::NONE, move |file| {
+                if let Ok(file) = file {
+                    let filename = file.path().expect("Couldn't get file path");
+		    txt_export_file.set_text(&filename.to_string_lossy());
+		    cb_export_file.set_active(true);
+                }
+            });
+        }),
+    );
     let settings = Settings::new(crate::editor::APP_ID);
     settings.bind("project-path", &txt_browse, "text").build();
     let curr_path = PathBuf::from(settings.string("project-path"));
@@ -236,10 +314,7 @@ pub fn build_ui(application: &gtk::Application) {
     window.present();
 }
 
-fn invalid_anek_dir_warning(window: &gtk::ApplicationWindow) {
-    let diag = AlertDialog::builder()
-        .modal(false)
-        .message("Not a Valid Anek Project.")
-        .build();
+fn alert_diag(window: &gtk::ApplicationWindow, msg: &str) {
+    let diag = AlertDialog::builder().modal(false).message(msg).build();
     diag.choose(Some(window), gio::Cancellable::NONE, |_| ());
 }

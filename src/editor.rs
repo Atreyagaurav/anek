@@ -1,9 +1,11 @@
 use crate::dtypes;
+use crate::dtypes::AnekDirectory;
 use crate::variable;
 use gtk::gdk::Key;
 use gtk::gdk::ModifierType;
 use gtk::gio::Settings;
 use gtk::AlertDialog;
+use gtk::DropDown;
 use gtk::EventControllerKey;
 use gtk::{gio::ApplicationFlags, Application, StringList, StringObject};
 use std::{
@@ -48,6 +50,13 @@ pub fn build_ui(application: &gtk::Application) {
     window.set_application(Some(application));
     load_ui!(btn_browse, gtk::Button);
     load_ui!(txt_browse, gtk::Text);
+
+    load_ui!(dd_filetype, gtk::DropDown);
+    load_ui!(btn_savenew, gtk::Button);
+    load_ui!(txt_newfile, gtk::Entry);
+    load_ui!(cb_newfile_sub, gtk::CheckButton);
+    load_ui!(txt_newfile_sub, gtk::Entry);
+
     load_ui!(dd_file, gtk::DropDown);
     load_ui!(btn_save, gtk::Button);
     load_ui!(swt_save, gtk::Switch);
@@ -71,27 +80,27 @@ pub fn build_ui(application: &gtk::Application) {
     }));
 
     txt_browse.connect_changed(
-        glib::clone!(@weak window, @weak txt_browse, @weak dd_file, @weak txt_file => move |_| {
+        glib::clone!(@weak window, @weak dd_file, @weak txt_file, @weak btn_save, @weak btn_savenew => move |txt_browse| {
             let wd = PathBuf::from(txt_browse.text());
             if  let Ok(anek) = dtypes::AnekDirectory::from(&wd){
-        let files = variable::list_filenames(&anek.root).unwrap();
-        let files: StringList = files.into_iter().collect();
-        dd_file.set_enable_search(true);
-        dd_file.set_model(Some(&files));
+		load_anek_files(&dd_file, &anek);
         dd_file.set_sensitive(true);
         txt_file.set_sensitive(true);
+        btn_savenew.set_sensitive(true);
+        btn_save.set_sensitive(true);
             } else {
-        let diag = AlertDialog::builder().modal(false).message("Not a Valid Anek Project.").build();
-        diag.choose(Some(&window),  gio::Cancellable::NONE, |_| ());
+        alert_diag(&window, "Not a Valid Anek Project!");
         dd_file.set_model(Some(&StringList::new(&vec![])));
         dd_file.set_sensitive(false);
         txt_file.set_sensitive(false);
+        btn_savenew.set_sensitive(false);
+        btn_save.set_sensitive(false);
         }
         }),
     );
 
     dd_file.connect_selected_item_notify(
-        glib::clone!(@weak window, @weak txt_browse, @weak txt_file, @weak btn_save, @weak dd_file => move |_| {
+        glib::clone!(@weak window, @weak txt_browse, @weak txt_file, @weak btn_save => move |dd_file| {
             if let Some(path) = dd_file.selected_item().map( |i| i.downcast::<StringObject>().unwrap()){
             let wd = PathBuf::from(txt_browse.text());
             if  let Ok(anek) = dtypes::AnekDirectory::from(&wd){
@@ -107,6 +116,78 @@ pub fn build_ui(application: &gtk::Application) {
 	    }
         }),
     );
+
+    btn_savenew.connect_clicked(glib::clone!(@weak window, @weak txt_browse, @weak dd_filetype, @weak dd_file, @weak txt_newfile, @weak cb_newfile_sub, @weak txt_newfile_sub => move |_| {
+            let wd = PathBuf::from(txt_browse.text());
+            if  let Ok(anek) = dtypes::AnekDirectory::from(&wd){
+	let dt: String = dd_filetype.selected_item().unwrap().downcast::<StringObject>().unwrap().string().into();
+	let dt = match dt.as_str() {
+	    "Variable" => dtypes::AnekDirectoryType::Variables,
+	    "Command" => dtypes::AnekDirectoryType::Commands,
+	    "Pipeline" => dtypes::AnekDirectoryType::Pipelines,
+	    "Input" => dtypes::AnekDirectoryType::Inputs,
+	    "Batch" => dtypes::AnekDirectoryType::Batch,
+	    "Loop" => dtypes::AnekDirectoryType::Loops,
+	    _ => panic!("Invalid Choice for filetype"),
+	};
+		// check for subfolders
+		match &dt {
+		    &dtypes::AnekDirectoryType::Loops => {
+		if !cb_newfile_sub.is_active(){
+		    alert_diag(&window, "Loop requires subfolders!");
+		    return;
+		}},
+			&dtypes::AnekDirectoryType::Inputs => (),
+		    &dtypes::AnekDirectoryType::Variables => {
+			if cb_newfile_sub.is_active(){
+		    alert_diag(&window, "Subfolders not supported!");
+		    return;
+			}},
+			_ =>  if cb_newfile_sub.is_active(){
+		    if txt_newfile_sub.text().is_empty(){
+			alert_diag(&window, "Cannot have Empty subfolder name!");
+			return;
+		    } else {
+			txt_newfile.set_text(&format!("{}/{}", txt_newfile.text(), txt_newfile_sub.text()));
+			cb_newfile_sub.set_active(false);
+		    }
+		},
+		}
+		if txt_newfile.text().is_empty(){
+		    alert_diag(&window, "Empty Filename!");
+		    return;
+		}
+		let filename = if cb_newfile_sub.is_active() {
+		    if txt_newfile_sub.text().is_empty(){
+			alert_diag(&window, "Cannot have Empty subfolder name!");
+			return;
+		    }
+		    format!("{}.d/{}",
+			    txt_newfile.text(),
+			    txt_newfile_sub.text())
+		} else {
+		    txt_newfile.text().to_string()
+		};
+		let path = anek.get_file(&dt, &filename);
+		if path.exists(){
+		    alert_diag(&window, "File Already Exists.");
+		} else {
+		    File::create(path).unwrap();
+		    load_anek_files(&dd_file, &anek);
+		}
+		let filename = format!("{}/{}", dt.dir_name(), filename);
+		let mut m: u32 = 0;
+		let model = dd_file.model().unwrap();
+		for i in 0..(model.n_items()){
+		    let p = model.item(i).unwrap().downcast::<StringObject>().unwrap().string().to_string();
+		    if p == filename{
+			m = i;
+			break;
+		    }
+		}
+		dd_file.set_selected(m);
+	    }
+    }));
 
     swt_save.connect_active_notify(glib::clone!(@weak btn_save, @weak swt_save => move |_| {
         btn_save.emit_by_name::<()>("clicked", &[]);
@@ -194,4 +275,15 @@ pub fn build_ui(application: &gtk::Application) {
     };
     txt_browse.set_text(&curr_path);
     window.present();
+}
+
+fn alert_diag(window: &gtk::ApplicationWindow, msg: &str) {
+    let diag = AlertDialog::builder().modal(false).message(msg).build();
+    diag.choose(Some(window), gio::Cancellable::NONE, |_| ());
+}
+
+fn load_anek_files(dd_file: &DropDown, anek: &AnekDirectory) {
+    let files = variable::list_filenames(&anek.root).unwrap();
+    let files: StringList = files.into_iter().collect();
+    dd_file.set_model(Some(&files));
 }
