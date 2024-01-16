@@ -125,13 +125,13 @@ pub fn list_options(args: CliArgs, path: PathBuf) -> Result<(), Error> {
             .collect();
     }
     for p in paths {
-        match p.rsplit_once("/") {
+        match p.rsplit_once('/') {
             Some((dir, file)) => println!("{}/{}", dir.truecolor(100, 100, 100), file),
             None => println!("{}", p),
         }
         if !args.search.is_empty() {
             let fpath = if let Some(ref at) = anek_type {
-                anek_dir.get_file(&at, &p)
+                anek_dir.get_file(at, &p)
             } else {
                 anek_dir.root.join(p)
             };

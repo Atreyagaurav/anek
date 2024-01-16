@@ -83,7 +83,7 @@ fn insert_till_now(
     filecontents: &mut RenderFileContents,
 ) -> Result<(), Error> {
     let p = if snippet {
-        RenderFileContentsType::Snippet(Template::parse_template(&lines)?, batch)
+        RenderFileContentsType::Snippet(Template::parse_template(lines)?, batch)
     } else {
         RenderFileContentsType::Literal(lines.clone())
     };
@@ -170,7 +170,7 @@ impl RenderFileContents {
         for part in &self.contents {
             match part {
                 RenderFileContentsType::Include(filename, lines) => {
-                    let file = File::open(&filename)
+                    let file = File::open(filename)
                         .with_context(|| format!("File {filename:?} not found"))?;
                     let reader_lines: Vec<String> =
                         BufReader::new(file)
@@ -189,9 +189,9 @@ impl RenderFileContents {
                     if let Some(batch) = batch {
                         let ad = AnekDirectory::from(&PathBuf::default())?;
                         let inputs =
-                            run_utils::input_files(&ad, &vec![batch.to_string()], &HashSet::new())?;
+                            run_utils::input_files(&ad, &[batch.to_string()], &HashSet::new())?;
                         for inp in &inputs {
-                            let input = variables_from_input(&inp, &overwrite)?;
+                            let input = variables_from_input(inp, overwrite)?;
                             let renderops = RenderOptions {
                                 variables: input,
                                 wd: PathBuf::default(),

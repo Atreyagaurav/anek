@@ -60,7 +60,7 @@ pub fn print_dot(args: CliArgs, path: PathBuf) -> Result<(), Error> {
         for file in variable::list_anek_filenames(&filepath.get_directory(dt))? {
             print!("\"{}\" [color={}", file, color);
             if args.urls {
-                print!(",URL=\"{}\"", filepath.url_to_path(&dt, &file));
+                print!(",URL=\"{}\"", filepath.url_to_path(dt, &file));
             }
             println!("]");
         }

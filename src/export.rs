@@ -79,12 +79,12 @@ impl ExportWrapers {
         }
     }
 
-    pub fn plain(vars: &Vec<String>) -> Result<Self, Error> {
+    pub fn plain(vars: &[String]) -> Result<Self, Error> {
         Ok(Self::new(
             Template::parse_template(
                 &vars
                     .iter()
-                    .map(|v| format!("{}={{{}}}", v.trim_end_matches("?"), v))
+                    .map(|v| format!("{}={{{}}}", v.trim_end_matches('?'), v))
                     .collect::<Vec<String>>()
                     .join("\n"),
             )?,
@@ -96,12 +96,12 @@ impl ExportWrapers {
         ))
     }
 
-    pub fn csv(vars: &Vec<String>) -> Result<Self, Error> {
+    pub fn csv(vars: &[String]) -> Result<Self, Error> {
         Ok(Self::new(
             Template::parse_template(&format!("{{{}}}", vars.join("},{")))?,
-            &format!(
+            format!(
                 "{}\n",
-                vars.iter().map(|v| v.trim_end_matches("?")).join(",")
+                vars.iter().map(|v| v.trim_end_matches('?')).join(",")
             ),
             "",
             "\n",
@@ -110,12 +110,12 @@ impl ExportWrapers {
         ))
     }
 
-    pub fn json(vars: &Vec<String>) -> Result<Self, Error> {
+    pub fn json(vars: &[String]) -> Result<Self, Error> {
         Ok(Self::new(
             Template::parse_template(
                 &vars
                     .iter()
-                    .map(|v| format!("\"{}\":\"{{{}}}\"", v.trim_end_matches("?"), v))
+                    .map(|v| format!("\"{}\":\"{{{}}}\"", v.trim_end_matches('?'), v))
                     .collect::<Vec<String>>()
                     .join(","),
             )?,

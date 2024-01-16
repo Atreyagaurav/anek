@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use string_template_plus::{Render, RenderOptions, Template};
 
-use crate::dtypes::{AnekDirectory, AnekDirectoryType, Command, CommandInputs};
+use crate::dtypes::{AnekDirectory, AnekDirectoryType, Command, CommandInputs, LoopVariable};
 use crate::variable;
 
 #[derive(Subcommand)]
@@ -115,13 +115,13 @@ fn filter_index(inputs: &str) -> Result<HashSet<usize>, Error> {
     Ok(NumberRangeOptions::default()
         .with_list_sep(',')
         .with_range_sep('-')
-        .parse(&inputs)?
+        .parse(inputs)?
         .collect())
 }
 
 pub fn cmd_from_pipeline(anek_dir: &AnekDirectory, pipeline: &str) -> Result<Vec<Command>, Error> {
     variable::input_lines(
-        &anek_dir.get_file(&AnekDirectoryType::Pipelines, &pipeline),
+        &anek_dir.get_file(&AnekDirectoryType::Pipelines, pipeline),
         None,
     )?
     .iter()
@@ -140,16 +140,16 @@ pub fn command_args(args: &Inputs) -> Vec<(String, String)> {
 
 pub fn overwrite_vars(
     args: &Inputs,
-    command_args: &Vec<(String, String)>,
+    command_args: &[(String, String)],
 ) -> Result<HashMap<String, String>, Error> {
     let args = args.on();
     let mut overwrite: HashMap<String, String> = HashMap::new();
     command_args.iter().for_each(|(k, v)| {
         overwrite.insert(k.to_string(), v.to_string());
     });
-    if args.overwrite.len() > 0 {
+    if !args.overwrite.is_empty() {
         for vars in &args.overwrite {
-            let mut split_data = vars.split(":").map(|s| s.split("=")).flatten();
+            let mut split_data = vars.split(':').flat_map(|s| s.split('='));
             overwrite.insert(
                 split_data
                     .next()
@@ -160,7 +160,7 @@ pub fn overwrite_vars(
                     .context(format!("Invalid Value in overwrite: {}", vars))?
                     .to_string(),
             );
-            while let Some(d) = split_data.next() {
+            for d in split_data {
                 eprintln!("Unused data from --overwrite: {}", d);
             }
         }
@@ -176,14 +176,8 @@ pub fn inputs(
     if !args.on().batch.is_empty() {
         input_files(anek_dir, &args.on().batch, &args.on().select_inputs)
     } else if let Some(l) = &args.on().r#loop {
-        let overwrite = overwrite_vars(&args, &command_args(&args))?;
-        loop_inputs(
-            anek_dir,
-            &l,
-            &args.on().select_inputs,
-            &variables,
-            &overwrite,
-        )
+        let overwrite = overwrite_vars(args, &command_args(args))?;
+        loop_inputs(anek_dir, l, &args.on().select_inputs, variables, &overwrite)
     } else {
         Ok(vec![anek_dir.inputs(1, &args.on().input).read_files()?])
     }
@@ -204,11 +198,15 @@ pub fn loop_inputs(
     let permutations = loop_vars
         .into_iter()
         // filter only the inputs used in the command file
-        .filter(|inps| variables.contains(&inps[0].0.as_str()))
+        .filter(|inps| variables.contains(&inps[0].name.as_str()))
         .map(|inps| {
-            if let Some(value) = overwrite.get(inps[0].0.as_str()) {
+            if let Some(value) = overwrite.get(inps[0].name.as_str()) {
                 // TODO, make overwrite metavariables work with loop too.
-                vec![(inps[0].0.clone(), 0, value.to_string())]
+                vec![LoopVariable::new(
+                    inps[0].name.clone(),
+                    0,
+                    value.to_string(),
+                )]
             } else {
                 inps.to_vec()
             }
@@ -218,15 +216,20 @@ pub fn loop_inputs(
     for (li, inputs) in permutations.enumerate() {
         let loop_index = li + 1;
 
-        if selection.len() > 0 && !selection.contains(&loop_index) {
+        if !selection.is_empty() && !selection.contains(&loop_index) {
             continue;
         }
         let mut variables: HashMap<String, String> = HashMap::new();
         variables.insert("LOOP_INDEX".to_string(), loop_index.to_string());
         let mut name = String::new();
-        for (var, i, val) in &inputs {
-            variables.insert(var.to_string(), val.to_string());
-            name.push_str(&format!("{} [{}]={}; ", &var, i, &val));
+        for LoopVariable {
+            name: var,
+            index,
+            value,
+        } in &inputs
+        {
+            variables.insert(var.to_string(), value.to_string());
+            name.push_str(&format!("{} [{}]={}; ", &var, index, &value));
         }
 
         let inp = CommandInputs::from_variables(loop_index, name, variables);
@@ -237,26 +240,26 @@ pub fn loop_inputs(
 
 pub fn input_files(
     anek_dir: &AnekDirectory,
-    batch_files: &Vec<String>,
+    batch_files: &[String],
     selection: &HashSet<usize>,
 ) -> Result<Vec<CommandInputs>, Error> {
     batch_files
         .iter()
-        .map(|b| variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, &b), None))
+        .map(|b| variable::input_lines(&anek_dir.get_file(&AnekDirectoryType::Batch, b), None))
         .flatten_ok()
         .collect::<Result<Vec<(usize, String)>, Error>>()?
         .into_iter()
         .enumerate()
         .map(|(i, (_, s))| (i + 1, s))
         .filter(|f| {
-            if selection.len() == 0 {
+            if selection.is_empty() {
                 true
             } else {
                 selection.contains(&f.0)
             }
         })
         .map(|(i, line)| {
-            let files: Vec<&str> = line.split(",").collect();
+            let files: Vec<&str> = line.split(',').collect();
             let inp = anek_dir.inputs(i, &files);
             inp.read_files()
         })
@@ -279,7 +282,7 @@ pub fn variables_from_input(
         .map(|(k, v)| -> Result<(String, String), Error> {
             Template::parse_template(v)?
                 .render(&renderop)
-                .and_then(|s| Ok((k.to_string(), s)))
+                .map(|s| (k.to_string(), s))
         })
         .collect::<Result<Vec<(String, String)>, Error>>()?;
     for (k, v) in overwrite_meta {

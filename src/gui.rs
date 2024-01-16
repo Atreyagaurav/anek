@@ -181,21 +181,21 @@ pub fn build_ui(application: &gtk::Application) {
             let wd = PathBuf::from(txt_browse.text());
             if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
 		let inputs: InputsArgs = match nb_input.current_page() {
-			    Some(0) => InputsArgs::input(vec![dd_input.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string()]),
-			    Some(1) => InputsArgs::batch(vec![dd_batch.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string()]),
-			    Some(2) => InputsArgs::r#loop(dd_loop.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string()),
+			    Some(0) => InputsArgs::input(vec![return_if_none!(dd_input.selected_item()).downcast::<StringObject>().unwrap().string().to_string()]),
+			    Some(1) => InputsArgs::batch(vec![return_if_none!(dd_batch.selected_item()).downcast::<StringObject>().unwrap().string().to_string()]),
+			    Some(2) => InputsArgs::r#loop(return_if_none!(dd_loop.selected_item()).downcast::<StringObject>().unwrap().string().to_string()),
 			    _ => panic!("Only 3 tabs coded."),
 		};
-		let task_res: anyhow::Result<()> = match nb_task.current_page() {
-		    Some(0) => {
+		let task_res: anyhow::Result<()> = match return_if_none!(nb_task.current_page()) {
+		    0 => {
 			let args = crate::run::CliArgs::from_gui(
 			    cb_pipeline.is_active(),
-			    dd_command.selected_item().map(|i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string(),
+			    return_if_none!(dd_command.selected_item()).downcast::<StringObject>().unwrap().string().to_string(),
 			    run_utils::Inputs::On(inputs)
 			);
 			crate::run::run_command(args, anek)
 		    }
-		    Some(1) => {
+		    1 => {
 			let safe = cb_variable_safe.is_active();
 			let variables: Vec<String> = lb_variable.selected_rows().iter().map(|r| {
 			    r.child().unwrap().downcast::<Label>().unwrap().label().to_string()}).map(|l| if safe {format!("{l}?")
@@ -210,16 +210,16 @@ pub fn build_ui(application: &gtk::Application) {
 				    None
 				};
 			let args = crate::export::CliArgs::from_gui(
-			    dd_export_type.selected_item().unwrap().downcast::<StringObject>().unwrap().string().to_string().to_ascii_lowercase(),
+			    return_if_none!(dd_export_type.selected_item()).downcast::<StringObject>().unwrap().string().to_string().to_ascii_lowercase(),
 			    variables,
 			    run_utils::Inputs::On(inputs),
 			    output
 				);
 			crate::export::run_command(args, anek)
 		    },
-			    Some(2) => {
+			    2 => {
 			let args = crate::render::CliArgs::from_gui(
-			    dd_template.selected_item().unwrap().downcast::<StringObject>().unwrap().string().to_string(),
+			    return_if_none!(dd_template.selected_item()).downcast::<StringObject>().unwrap().string().to_string(),
 			    if cb_template.is_active(){
 				if txt_template.text().is_empty(){
 				    alert_diag(&window, "Output File Empty!");
@@ -254,7 +254,7 @@ pub fn build_ui(application: &gtk::Application) {
             if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
 		let path = anek.get_file(
 		    &AnekDirectoryType::Inputs,
-		    &dd_input.selected_item().unwrap().downcast::<gtk::StringObject>().unwrap().string()
+		    &return_if_none!(dd_input.selected_item()).downcast::<gtk::StringObject>().unwrap().string()
 		);
 		let inputs = dtypes::CommandInputs::from_files(0, "".to_string(), vec![path]);
 		let contents = inputs.read_files().unwrap().variables().iter().map(|(k,v)| format!("{k}={v}")).sorted().join("\n");
@@ -268,7 +268,7 @@ pub fn build_ui(application: &gtk::Application) {
                 if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
             let path = anek.get_file(
                 &AnekDirectoryType::Batch,
-                &dd_batch.selected_item().unwrap().downcast::<gtk::StringObject>().unwrap().string()
+                &return_if_none!(dd_batch.selected_item()).downcast::<gtk::StringObject>().unwrap().string()
             );
             let file = File::open(path).expect("Couldn't open file");
                     let mut reader = BufReader::new(file);
@@ -285,11 +285,13 @@ pub fn build_ui(application: &gtk::Application) {
                 if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
             let path = anek.get_file(
                 &AnekDirectoryType::Loops,
-                & match dd_loop.selected_item() {Some(i) => i.downcast::<gtk::StringObject>().unwrap().string(), None => return,}
+                &return_if_none!(
+            dd_loop.selected_item()
+        ).downcast::<gtk::StringObject>().unwrap().string()
             ).with_extension("d");
             let loop_vars = variable::loop_inputs(&path).unwrap();
             let contents = loop_vars.into_iter().multi_cartesian_product().map(
-            |inp| inp.iter().map(|(var, i, val)| format!("{var}[{i}]={val}")).join("; ")
+        |inp| inp.iter().map(|dtypes::LoopVariable {name, index, value}| format!("{name}[{index}]={value}")).join("; ")
             ).join("\n");
                     tv_loop.buffer().set_text(&contents);
             }}
@@ -306,7 +308,7 @@ pub fn build_ui(application: &gtk::Application) {
 			} else {
 			    &dtypes::AnekDirectoryType::Commands
 			},
-                &dd_command.selected_item().unwrap().downcast::<gtk::StringObject>().unwrap().string()
+                &return_if_none!(dd_command.selected_item()).downcast::<gtk::StringObject>().unwrap().string()
             );
             let file = File::open(path).expect("Couldn't open file");
                     let mut reader = BufReader::new(file);
@@ -327,7 +329,7 @@ pub fn build_ui(application: &gtk::Application) {
 
     btn_export_file.connect_clicked(
         glib::clone!(@weak window, @weak txt_browse, @weak dd_export_type, @weak txt_export_file, @weak cb_export_file => move |_| {
-	    let mime = format!("text/{}", dd_export_type.selected_item().unwrap().downcast::<StringObject>().unwrap().string().to_string().to_ascii_lowercase());
+	    let mime = format!("text/{}", return_if_none!(dd_export_type.selected_item()).downcast::<StringObject>().unwrap().string().to_string().to_ascii_lowercase());
 
 	    let filter = FileFilter::new();
 	    filter.add_mime_type(&mime);

@@ -2,7 +2,11 @@ use anyhow::Error;
 use colored::Colorize;
 use core::slice::Iter;
 use itertools::Itertools;
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 use string_template_plus::{Render, RenderOptions, Template};
 use subprocess::Exec;
 
@@ -83,6 +87,19 @@ impl AnekDirectoryType {
 pub struct AnekDirectory {
     pub proj_root: PathBuf,
     pub root: PathBuf,
+}
+
+#[derive(Clone)]
+pub struct LoopVariable {
+    pub name: String,
+    pub index: usize,
+    pub value: String,
+}
+
+impl LoopVariable {
+    pub fn new(name: String, index: usize, value: String) -> Self {
+        Self { name, index, value }
+    }
 }
 
 pub struct Command {
@@ -190,12 +207,12 @@ impl CommandInputs {
 }
 
 impl AnekDirectory {
-    pub fn from(wd: &PathBuf) -> Result<Self, Error> {
+    pub fn from(wd: &Path) -> Result<Self, Error> {
         let root = wd.join(".anek");
         if root.exists() {
             if root.is_dir() {
                 Ok(Self {
-                    proj_root: wd.clone(),
+                    proj_root: wd.to_path_buf(),
                     root,
                 })
             } else {
@@ -204,7 +221,7 @@ impl AnekDirectory {
         } else {
             let wd = wd.canonicalize()?;
             if let Some(p) = wd.parent() {
-                AnekDirectory::from(&p.to_path_buf())
+                AnekDirectory::from(p)
             } else {
                 Err(Error::msg("No .anek configuration in the current path"))
             }
@@ -227,7 +244,7 @@ impl AnekDirectory {
             }
         } else {
             fs::create_dir(&root)?;
-            let anek = AnekDirectory::from(&wd)?;
+            let anek = AnekDirectory::from(wd)?;
             for adt in anekdirtype_iter() {
                 fs::create_dir(anek.get_directory(adt))?;
             }
@@ -240,7 +257,7 @@ impl AnekDirectory {
     }
 
     pub fn get_file(&self, dirtype: &AnekDirectoryType, filename: &str) -> PathBuf {
-        self.get_directory(dirtype).join(&filename)
+        self.get_directory(dirtype).join(filename)
     }
 
     pub fn url_to_path(&self, dirtype: &AnekDirectoryType, filename: &str) -> String {
@@ -251,22 +268,22 @@ impl AnekDirectory {
                 file = file_d;
             }
         }
-        format!("{}", file.to_str().unwrap())
+        file.to_str().unwrap().to_string()
     }
 
     pub fn get_files<T: ToString>(
         &self,
         dirtype: &AnekDirectoryType,
-        filenames: &Vec<T>,
+        filenames: &[T],
     ) -> Vec<PathBuf> {
         filenames
             .iter()
-            .map(|f| self.get_file(&dirtype, &f.to_string()))
+            .map(|f| self.get_file(dirtype, &f.to_string()))
             .collect()
     }
 
     pub fn command(&self, cmd: &str) -> Result<Command, Error> {
-        let s = fs::read_to_string(self.get_file(&AnekDirectoryType::Commands, &cmd))?;
+        let s = fs::read_to_string(self.get_file(&AnekDirectoryType::Commands, cmd))?;
         let templ = Template::parse_template(s.trim())?;
         Ok(Command {
             name: cmd.to_string(),
@@ -278,7 +295,7 @@ impl AnekDirectory {
         CommandInputs::from_files(
             index,
             files.iter().map(|s| s.to_string()).join(","),
-            self.get_files(&AnekDirectoryType::Inputs, &files),
+            self.get_files(&AnekDirectoryType::Inputs, files),
         )
     }
 }

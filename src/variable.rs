@@ -5,10 +5,10 @@ use itertools::Itertools;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{read_dir, File};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use string_template_plus::{Render, RenderOptions, Template, TemplatePart};
 
-use crate::dtypes::{AnekDirectory, AnekDirectoryType};
+use crate::dtypes::{AnekDirectory, AnekDirectoryType, LoopVariable};
 
 #[derive(Args)]
 #[command(group = ArgGroup::new("list_info").required(false).multiple(false))]
@@ -59,7 +59,7 @@ pub fn input_lines(
     filename: &PathBuf,
     renumber: Option<usize>,
 ) -> Result<Vec<(usize, String)>, Error> {
-    let file = match File::open(&filename) {
+    let file = match File::open(filename) {
         Ok(f) => f,
         Err(e) => {
             return Err(Error::msg(format!(
@@ -72,7 +72,7 @@ pub fn input_lines(
     let lines = if let Some(num) = renumber {
         reader_lines
             .map(|l| l.unwrap().trim().to_string())
-            .filter(|l| l != "" && !l.starts_with("#"))
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
             .enumerate()
             .map(|(i, l)| (i + num, l))
             .collect()
@@ -80,7 +80,7 @@ pub fn input_lines(
         reader_lines
             .enumerate()
             .map(|(i, l)| (i + 1, l.unwrap().trim().to_string()))
-            .filter(|(_, l)| l != "" && !l.starts_with("#"))
+            .filter(|(_, l)| !l.is_empty() && !l.starts_with('#'))
             .collect()
     };
     Ok(lines)
@@ -97,19 +97,17 @@ pub fn matching_lines(
         if any {
             for pat in patterns {
                 if line.contains(pat) {
-                    let line = line.replace(&*pat, &pat.reversed().to_string());
+                    let line = line.replace(pat, &pat.reversed().to_string());
                     matching_lines.push((*i, line));
                 }
             }
-        } else {
-            if patterns.iter().all(|p| line.contains(&*p)) {
-                let mut line = line.clone();
-                patterns.iter().for_each(|p| {
-                    line = line.replace(&*p, &p.reversed().to_string());
-                });
+        } else if patterns.iter().all(|p| line.contains(p)) {
+            let mut line = line.clone();
+            patterns.iter().for_each(|p| {
+                line = line.replace(p, &p.reversed().to_string());
+            });
 
-                matching_lines.push((*i, line));
-            }
+            matching_lines.push((*i, line));
         }
     }
     Ok(matching_lines)
@@ -122,7 +120,7 @@ pub fn read_inputs_set<'a>(
 ) -> Result<(), Error> {
     for (i, line) in enum_lines {
         let split_data = line
-            .split_once("=")
+            .split_once('=')
             .context(format!("Invalid Line# {}: \"{}\"", i, line))?;
         input_map.insert(split_data.0);
     }
@@ -137,7 +135,7 @@ pub fn read_inputs_set_from_commands<'a>(
         let templ = Template::parse_template(line)?;
         templ
             .parts()
-            .into_iter()
+            .iter()
             .filter_map(|p| {
                 if let TemplatePart::Var(v, _) = p {
                     Some(v)
@@ -159,23 +157,23 @@ pub fn read_inputs(
 ) -> Result<(), Error> {
     for (i, line) in enum_lines {
         let split_data = line
-            .split_once("=")
+            .split_once('=')
             .context(format!("Invalid Line# {}: \"{}\"", i, line))?;
         input_map.insert(split_data.0.to_string(), split_data.1.to_string());
     }
     Ok(())
 }
 
-pub fn list_files_sorted(filename: &PathBuf) -> Result<std::vec::IntoIter<PathBuf>, Error> {
-    let files = read_dir(&filename)?;
-    return Ok(files
+pub fn list_files_sorted(filename: &Path) -> Result<std::vec::IntoIter<PathBuf>, Error> {
+    let files = read_dir(filename)?;
+    Ok(files
         .map(|f| -> PathBuf { f.unwrap().path().to_owned() })
-        .sorted());
+        .sorted())
 }
 
-pub fn list_files_sorted_recursive(filename: &PathBuf) -> Result<Vec<PathBuf>, Error> {
+pub fn list_files_sorted_recursive(filename: &Path) -> Result<Vec<PathBuf>, Error> {
     let mut file_list: Vec<PathBuf> = Vec::new();
-    let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![filename.clone()]);
+    let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![filename.to_path_buf()]);
 
     while !list_dir.is_empty() {
         let file = list_dir.pop_front().unwrap();
@@ -186,10 +184,10 @@ pub fn list_files_sorted_recursive(filename: &PathBuf) -> Result<Vec<PathBuf>, E
             list_dir.extend(files);
         }
     }
-    return Ok(file_list);
+    Ok(file_list)
 }
 
-pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, Error> {
+pub fn list_filenames(dirpath: &Path) -> Result<Vec<String>, Error> {
     let dirpath_full = dirpath.to_str().unwrap();
     let filenames: Vec<String> = list_files_sorted_recursive(dirpath)?
         .iter()
@@ -198,17 +196,17 @@ pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, Error> {
             let relpath = fullpath
                 .strip_prefix(dirpath_full)
                 .unwrap()
-                .trim_start_matches("/");
+                .trim_start_matches('/');
             relpath.to_string()
         })
         .collect();
     Ok(filenames)
 }
 
-pub fn list_anek_filenames(dirpath: &PathBuf) -> Result<Vec<String>, Error> {
+pub fn list_anek_filenames(dirpath: &Path) -> Result<Vec<String>, Error> {
     let dirpath_full = dirpath.to_str().unwrap();
     let mut file_list: HashSet<PathBuf> = HashSet::new();
-    let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![dirpath.clone()]);
+    let mut list_dir: VecDeque<PathBuf> = VecDeque::from(vec![dirpath.to_path_buf()]);
 
     while !list_dir.is_empty() {
         let file = list_dir.pop_front().unwrap();
@@ -230,7 +228,7 @@ pub fn list_anek_filenames(dirpath: &PathBuf) -> Result<Vec<String>, Error> {
             let relpath = fullpath
                 .strip_prefix(dirpath_full)
                 .unwrap()
-                .trim_start_matches("/");
+                .trim_start_matches('/');
             relpath.to_string()
         })
         .sorted()
@@ -238,19 +236,19 @@ pub fn list_anek_filenames(dirpath: &PathBuf) -> Result<Vec<String>, Error> {
     Ok(filenames)
 }
 
-pub fn loop_inputs(dirname: &PathBuf) -> Result<Vec<Vec<(String, usize, String)>>, Error> {
-    let input_files = list_files_sorted(&dirname)?;
-    let mut input_values: Vec<Vec<(String, usize, String)>> = Vec::new();
+pub fn loop_inputs(dirname: &Path) -> Result<Vec<Vec<LoopVariable>>, Error> {
+    let input_files = list_files_sorted(dirname)?;
+    let mut input_values: Vec<Vec<LoopVariable>> = Vec::new();
     for file in input_files {
         let filename = file.file_name().unwrap().to_str().unwrap().to_string();
         let lines = input_lines(&file, Some(1))?;
-        if lines.len() == 0 {
+        if lines.is_empty() {
             continue;
         }
         input_values.push(
             lines
                 .into_iter()
-                .map(|(i, l)| (filename.clone(), i, l))
+                .map(|(i, l)| LoopVariable::new(filename.clone(), i, l))
                 .collect(),
         );
     }
@@ -270,7 +268,7 @@ fn print_variable_info(name: &str, path: &PathBuf, details: bool) -> Result<(), 
             }
         }
     } else {
-        println!("");
+        println!();
     }
 
     Ok(())
@@ -304,7 +302,7 @@ fn print_update(filename: &str, variable: &str, old: Option<&str>, new: &str) {
 
 fn update_file(file_s: &str, var_line: &str) -> Result<(), Error> {
     let file = PathBuf::from(file_s);
-    if let Some((k, v)) = var_line.split_once("=") {
+    if let Some((k, v)) = var_line.split_once('=') {
         let mut variables: HashMap<String, String> = if !file.exists() {
             HashMap::new()
         } else if file.is_file() {
@@ -356,14 +354,12 @@ fn update_from_stdin(file_templ: &Template) -> Result<(), Error> {
             });
             filename = file_templ.render(&filerenderops)?;
             update_file(&filename, vars)?;
+        } else if let Some(file) = &file_notempl {
+            update_file(file, &input)?;
+        } else if !filename.is_empty() {
+            update_file(&filename, &input)?;
         } else {
-            if let Some(file) = &file_notempl {
-                update_file(file, &input)?;
-            } else if !filename.is_empty() {
-                update_file(&filename, &input)?;
-            } else {
-                return Err(Error::msg("No arguments for the file template"));
-            }
+            return Err(Error::msg("No arguments for the file template"));
         }
     }
     Ok(())
@@ -375,7 +371,7 @@ pub fn compact_lines_from_anek_file(
     let mut files: Vec<PathBuf> = Vec::new();
     for filename in filenames {
         if filename.is_dir() {
-            files.extend(list_filenames(&filename)?.iter().map(|f| filename.join(f)));
+            files.extend(list_filenames(filename)?.iter().map(|f| filename.join(f)));
         } else if !filename.exists() || filename.is_file() {
             let dot_d = filename.with_file_name(format!(
                 "{}.d",
@@ -400,7 +396,7 @@ pub fn compact_lines_from_anek_file(
     }
     let lines = files
         .iter()
-        .map(|file| input_lines(&file, None))
+        .map(|file| input_lines(file, None))
         .collect::<Result<Vec<Vec<(usize, String)>>, Error>>()?
         .into_iter()
         .flatten()
@@ -418,12 +414,11 @@ pub fn run_command(args: CliArgs, anek_dir: AnekDirectory) -> Result<(), Error> 
 
         inp_lines = files
             .iter()
-            .map(|file| input_lines(&file, None))
+            .map(|file| input_lines(file, None))
             .collect::<Result<Vec<Vec<(usize, String)>>, Error>>()?;
         inp_lines
             .iter()
-            .map(|lns| read_inputs_set(lns, &mut vars))
-            .collect::<Result<(), Error>>()?;
+            .try_for_each(|lns| read_inputs_set(lns, &mut vars))?;
     }
 
     if args.scan_commands {
@@ -431,15 +426,14 @@ pub fn run_command(args: CliArgs, anek_dir: AnekDirectory) -> Result<(), Error> 
             list_files_sorted_recursive(&anek_dir.get_directory(&AnekDirectoryType::Commands))?;
         cmd_lines = files
             .iter()
-            .map(|file| input_lines(&file, None))
+            .map(|file| input_lines(file, None))
             .collect::<Result<Vec<Vec<(usize, String)>>, Error>>()?;
         cmd_lines
             .iter()
-            .map(|lines| read_inputs_set_from_commands(lines, &mut vars))
-            .collect::<Result<(), Error>>()?;
+            .try_for_each(|lines| read_inputs_set_from_commands(lines, &mut vars))?;
     }
     for var in vars {
-        let var_file = anek_dir.get_file(&AnekDirectoryType::Variables, &var);
+        let var_file = anek_dir.get_file(&AnekDirectoryType::Variables, var);
         if !var_file.exists() {
             println!("{}: {}", "New".red().bold(), var);
             if args.add {
