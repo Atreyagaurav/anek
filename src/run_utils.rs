@@ -15,6 +15,12 @@ pub enum Inputs {
     On(InputsArgs),
 }
 
+impl Default for Inputs {
+    fn default() -> Self {
+        Self::On(InputsArgs::default())
+    }
+}
+
 impl Inputs {
     pub fn on(&self) -> &InputsArgs {
         match self {
@@ -23,7 +29,7 @@ impl Inputs {
     }
 }
 
-#[derive(Args, Clone)]
+#[derive(Args, Clone, Default)]
 #[command(group = ArgGroup::new("variables").required(false).multiple(false))]
 pub struct InputsArgs {
     /// Select subset to run, works in batch and loop only
@@ -80,6 +86,33 @@ pub struct InputsArgs {
     /// the template.
     #[arg(num_args(0..), last(true), requires="action")]
     command_args: Vec<String>,
+}
+
+impl InputsArgs {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn batch(batch: Vec<String>) -> Self {
+        Self {
+            batch,
+            ..Default::default()
+        }
+    }
+
+    pub fn input(input: Vec<String>) -> Self {
+        Self {
+            input,
+            ..Default::default()
+        }
+    }
+
+    pub fn r#loop(r#loop: String) -> Self {
+        Self {
+            r#loop: Some(r#loop),
+            ..Default::default()
+        }
+    }
 }
 
 fn filter_index(inputs: &str) -> Result<HashSet<usize>, Error> {

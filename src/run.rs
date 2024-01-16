@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use crate::dtypes::{AnekDirectory, Command};
 use crate::run_utils;
 
-#[derive(Args)]
+#[derive(Args, Default)]
 pub struct CliArgs {
     /// Command is a template to run
     ///
@@ -37,6 +37,17 @@ pub struct CliArgs {
     command: String,
     #[command(subcommand)]
     inputs: run_utils::Inputs,
+}
+
+impl CliArgs {
+    pub fn from_gui(pipeline: bool, command: String, inputs: run_utils::Inputs) -> Self {
+        Self {
+            pipeline,
+            command,
+            inputs,
+            ..Default::default()
+        }
+    }
 }
 
 pub fn run_command(args: CliArgs) -> Result<(), Error> {

@@ -7,9 +7,9 @@ use string_template_plus::{Render, RenderOptions, Template};
 use crate::dtypes::AnekDirectory;
 use itertools::Itertools;
 
-use crate::run_utils;
+use crate::{run_utils, variable};
 
-#[derive(Args)]
+#[derive(Args, Default)]
 pub struct CliArgs {
     /// Export according to the format specified (csv,json,plain)
     #[arg(short, long, default_value="csv", value_hint = ValueHint::Other)]
@@ -20,6 +20,16 @@ pub struct CliArgs {
 
     #[command(subcommand)]
     inputs: run_utils::Inputs,
+}
+
+impl CliArgs {
+    pub fn from_gui(format: String, variables: Vec<String>, inputs: run_utils::Inputs) -> Self {
+        Self {
+            format,
+            variables,
+            inputs,
+        }
+    }
 }
 
 struct ExportWrapers {

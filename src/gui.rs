@@ -1,6 +1,7 @@
-use crate::dtypes;
 use crate::dtypes::AnekDirectoryType;
+use crate::run_utils::InputsArgs;
 use crate::variable;
+use crate::{dtypes, run_utils};
 use colored::Colorize;
 use gtk::gio::Settings;
 use gtk::{gio, glib, prelude::*, Align, Label};
@@ -155,48 +156,53 @@ pub fn build_ui(application: &gtk::Application) {
     btn_execute.connect_clicked(
         glib::clone!(@weak window, @weak dd_command, @weak txt_browse, @weak nb_task, @weak nb_input, @weak dd_input, @weak lb_variable, @weak dd_export_type, @weak dd_batch, @weak dd_loop, @weak cb_pipeline, @weak cb_export_file, @weak txt_export_file, @weak txt_command => move |_| {
             let wd = PathBuf::from(txt_browse.text());
-            if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
-		let task: String = match nb_task.current_page() {
-			    Some(0) => format!("run {} {}",
-					      if cb_pipeline.is_active() {
-						  "--pipeline"
-					      } else {
-						  ""
-					      },
-					      dd_command.selected_item().map(|i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
+            if let Ok(_) = dtypes::AnekDirectory::from(&wd){
+		let inputs: InputsArgs = match nb_input.current_page() {
+			    Some(0) => InputsArgs::input(vec![dd_input.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string()]),
+			    Some(1) => InputsArgs::batch(vec![dd_batch.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string()]),
+			    Some(2) => InputsArgs::r#loop(dd_loop.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string()),
+			    _ => panic!("Only 3 tabs coded."),
+		};
+		let task_res: anyhow::Result<()> = match nb_task.current_page() {
+		    Some(0) => {
+			let args = crate::run::CliArgs::from_gui(
+			    cb_pipeline.is_active(),
+			    dd_command.selected_item().map(|i| i.downcast::<StringObject>().unwrap().string()).unwrap().to_string(),
+			    run_utils::Inputs::On(inputs)
+			);
+			crate::run::run_command(args)
+		    }
 		    Some(1) => {
 			let safe = cb_variable_safe.is_active();
-			let variables = lb_variable.selected_rows().iter().map(|r| {
+			let variables: Vec<String> = lb_variable.selected_rows().iter().map(|r| {
 			    r.child().unwrap().downcast::<Label>().unwrap().label().to_string()}).map(|l| if safe {format!("{l}?")
-			} else {l}).join(",");
-			format!("export --format {} --variables {}{}",
-				dd_export_type.selected_item().unwrap().downcast::<StringObject>().unwrap().string().to_string().to_ascii_lowercase(),
-				variables,
-				if cb_export_file.is_active() {
-				    if txt_export_file.text().is_empty(){
-					alert_diag(&window, "Empty Output File");
-					return;
-				    }
-				    format!(" > {}", txt_export_file.text())
-				}else{
-				    "".to_string()
-				})
+			} else {l}).collect();
+			let args = crate::export::CliArgs::from_gui(
+			    dd_export_type.selected_item().unwrap().downcast::<StringObject>().unwrap().string().to_string().to_ascii_lowercase(),
+			    variables,
+			    run_utils::Inputs::On(inputs),
+				);
+				// if cb_export_file.is_active() {
+				//     if txt_export_file.text().is_empty(){
+				// 	alert_diag(&window, "Empty Output File");
+				// 	return;
+				//     }
+				//     format!(" > {}", txt_export_file.text())
+				// }else{
+				//     "".to_string()
+				// }
+			crate::export::run_command(args)
 		    },
-			    Some(2) => format!("render"),
+			    Some(2) => todo!(),
 			    _ => panic!("Only 3 tabs coded."),
-			};
-		let input: String = match nb_input.current_page() {
-			    Some(0) => format!("--input {}", dd_input.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
-			    Some(1) => format!("--batch {}", dd_batch.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
-			    Some(2) => format!("--loop {}", dd_loop.selected_item().map( |i| i.downcast::<StringObject>().unwrap().string()).unwrap()),
-			    _ => panic!("Only 3 tabs coded."),
-			};
-		let cmd: String =
-		    format!("anek --quiet {} on {}", task, input);
-		txt_command.set_text(&cmd);
-		match subprocess::Exec::shell(cmd).cwd(anek.proj_root).join() {
+		};
+		match task_res {
 		    Ok(_) => println!("{}", "-".repeat(20).blue()),
-		    Err(_) => println!("{}", "-".repeat(20).red())
+		    Err(e) => {
+			println!("{}", "-".repeat(20).red());
+			println!("{}: {:?}", "Error".on_red(), e);
+			println!("{}", "-".repeat(20).red());
+		    }
 		}
         } else {
         alert_diag(&window, "Invalid Anek Projecect Directory!");

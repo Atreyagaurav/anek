@@ -10,7 +10,7 @@ use string_template_plus::{Render, RenderOptions, Template};
 use crate::dtypes::{AnekDirectory, AnekDirectoryType};
 use crate::run_utils::{self, variables_from_input};
 
-#[derive(Args)]
+#[derive(Args, Default)]
 pub struct CliArgs {
     /// Render the given template like command templates
     ///
