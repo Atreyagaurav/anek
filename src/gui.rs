@@ -241,7 +241,7 @@ pub fn build_ui(application: &gtk::Application) {
                 if let Ok(anek) = dtypes::AnekDirectory::from(&wd){
             let path = anek.get_file(
                 &AnekDirectoryType::Loops,
-                &dd_loop.selected_item().unwrap().downcast::<gtk::StringObject>().unwrap().string()
+                & match dd_loop.selected_item() {Some(i) => i.downcast::<gtk::StringObject>().unwrap().string(), None => return,}
             ).with_extension("d");
             let loop_vars = variable::loop_inputs(&path).unwrap();
             let contents = loop_vars.into_iter().multi_cartesian_product().map(

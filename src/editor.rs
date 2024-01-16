@@ -89,8 +89,6 @@ pub fn build_ui(application: &gtk::Application) {
         btn_savenew.set_sensitive(true);
         btn_save.set_sensitive(true);
             } else {
-        alert_diag(&window, "Not a Valid Anek Project!");
-        dd_file.set_model(Some(&StringList::new(&vec![])));
         dd_file.set_sensitive(false);
         txt_file.set_sensitive(false);
         btn_savenew.set_sensitive(false);

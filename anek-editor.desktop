@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Anek Editor
+Comment=GUI for Editing the Anek Utility Files
+# Path=
+Exec=anek editor
+# Icon=
+Terminal=false
+Categories=Terminal;Commands;

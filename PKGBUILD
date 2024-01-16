@@ -1,6 +1,6 @@
 # Maintainer: Gaurav Atreya <allmanpride@gmail.com>
 pkgname=anek
-pkgver=0.6.0
+pkgver=0.6.1
 pkgrel=1
 pkgdesc="Tool to run commands based on a templates"
 arch=('x86_64')
@@ -25,4 +25,7 @@ package() {
     "../target/release/${pkgname}" completions --zsh > "$pkgdir/usr/share/zsh/site-functions/_${pkgname}"
     mkdir -p "$pkgdir/usr/share/glib-2.0/schemas/"
     cp "../resources/org.anek.AnekEditor.gschema.xml" "$pkgdir/usr/share/glib-2.0/schemas/"
+    mkdir -p "$pkgdir/usr/share/applications/"
+    cp "../anek.desktop" "$pkgdir/usr/share/applications/anek.desktop"
+    cp "../anek-editor.desktop" "$pkgdir/usr/share/applications/anek-editor.desktop"
 }

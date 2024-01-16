@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Anek Command Manager
+Comment=GUI for using the Anek Utility to run Commands
+# Path=
+Exec=anek gui
+# Icon=
+Terminal=true
+Categories=Terminal;Commands;
