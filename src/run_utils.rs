@@ -89,10 +89,6 @@ pub struct InputsArgs {
 }
 
 impl InputsArgs {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn batch(batch: Vec<String>) -> Self {
         Self {
             batch,

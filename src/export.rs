@@ -1,19 +1,24 @@
 use anyhow::Error;
 use clap::{Args, ValueHint};
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use string_template_plus::{Render, RenderOptions, Template};
 
 use crate::dtypes::AnekDirectory;
 use itertools::Itertools;
 
-use crate::{run_utils, variable};
+use crate::run_utils;
 
 #[derive(Args, Default)]
 pub struct CliArgs {
     /// Export according to the format specified (csv,json,plain)
     #[arg(short, long, default_value="csv", value_hint = ValueHint::Other)]
     format: String,
+    /// Output file for Export
+    #[arg(short, long, value_hint = ValueHint::Other)]
+    output: Option<PathBuf>,
     /// Variables to export
     #[arg(short, long,  value_delimiter=',', value_hint = ValueHint::Other)]
     variables: Vec<String>,
@@ -23,11 +28,17 @@ pub struct CliArgs {
 }
 
 impl CliArgs {
-    pub fn from_gui(format: String, variables: Vec<String>, inputs: run_utils::Inputs) -> Self {
+    pub fn from_gui(
+        format: String,
+        variables: Vec<String>,
+        inputs: run_utils::Inputs,
+        output: Option<PathBuf>,
+    ) -> Self {
         Self {
             format,
             variables,
             inputs,
+            output,
         }
     }
 }
@@ -129,19 +140,26 @@ pub fn run_command(args: CliArgs, anek_dir: AnekDirectory) -> Result<(), Error> 
         shell_commands: false,
     };
 
-    print!("{}", wrappers.start);
+    let file = args.output.map(|f| File::create(f).unwrap());
+
+    let mut writer: Box<dyn Write> = match file {
+        Some(f) => Box::new(BufWriter::new(f)),
+        None => Box::new(std::io::stdout()),
+    };
+
+    write!(writer, "{}", wrappers.start)?;
     let total = input_files.len();
     for (i, input) in input_files.iter().enumerate() {
         let i = i + 1;
-        print!("{}", wrappers.start_line);
+        write!(writer, "{}", wrappers.start_line)?;
         input.eprint_job(i, total);
         renderop.variables = run_utils::variables_from_input(input, &overwrite)?;
-        print!("{}", wrappers.vars_templ.render(&renderop)?);
-        print!("{}", wrappers.end_line);
+        write!(writer, "{}", wrappers.vars_templ.render(&renderop)?)?;
+        write!(writer, "{}", wrappers.end_line)?;
         if i < total {
-            print!("{}", wrappers.connector);
+            write!(writer, "{}", wrappers.connector)?;
         }
     }
-    println!("{}", wrappers.end);
+    writeln!(writer, "{}", wrappers.end)?;
     Ok(())
 }

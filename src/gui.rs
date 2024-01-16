@@ -177,20 +177,21 @@ pub fn build_ui(application: &gtk::Application) {
 			let variables: Vec<String> = lb_variable.selected_rows().iter().map(|r| {
 			    r.child().unwrap().downcast::<Label>().unwrap().label().to_string()}).map(|l| if safe {format!("{l}?")
 			} else {l}).collect();
+			let output = if cb_export_file.is_active() {
+				    if txt_export_file.text().is_empty(){
+					alert_diag(&window, "Empty Output File");
+					return;
+				    }
+				    Some(PathBuf::from(txt_export_file.text()))
+				}else{
+				    None
+				};
 			let args = crate::export::CliArgs::from_gui(
 			    dd_export_type.selected_item().unwrap().downcast::<StringObject>().unwrap().string().to_string().to_ascii_lowercase(),
 			    variables,
 			    run_utils::Inputs::On(inputs),
+			    output
 				);
-				// if cb_export_file.is_active() {
-				//     if txt_export_file.text().is_empty(){
-				// 	alert_diag(&window, "Empty Output File");
-				// 	return;
-				//     }
-				//     format!(" > {}", txt_export_file.text())
-				// }else{
-				//     "".to_string()
-				// }
 			crate::export::run_command(args, anek)
 		    },
 			    Some(2) => todo!(),
