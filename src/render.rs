@@ -16,13 +16,13 @@ pub struct CliArgs {
     /// Render the given template like command templates
     ///
     /// Renders a template. You pass template from the CLI.
-    #[arg(short, long, group="action", value_hint = ValueHint::Other)]
+    #[arg(short, long)]
     template: bool,
     /// Render the given file like command templates
     ///
     /// Renders a template from file. You pass template file from
     /// outside instead of anek template.
-    #[arg(short, long, group="action", value_hint = ValueHint::Other)]
+    #[arg(short, long)]
     input_file: bool,
     /// Render the given file like command templates
     ///

@@ -390,7 +390,7 @@ pub fn build_ui(application: &gtk::Application) {
     let settings = Settings::new(crate::editor::APP_ID);
     settings.bind("project-path", &txt_browse, "text").build();
     let curr_path = PathBuf::from(settings.string("project-path"));
-    let curr_path = match curr_path.canonicalize() {
+    let curr_path = match dunce::canonicalize(&curr_path) {
         Ok(p) => p.to_string_lossy().to_string(),
         _ => curr_path.to_string_lossy().to_string(),
     };

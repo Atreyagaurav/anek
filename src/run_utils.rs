@@ -84,7 +84,7 @@ pub struct InputsArgs {
     ///
     /// The arguments passed here can be accessed as ARG1,ARG2,etc in
     /// the template.
-    #[arg(num_args(0..), last(true), requires="action")]
+    #[arg(num_args(0..), last(true))]
     command_args: Vec<String>,
 }
 

@@ -135,6 +135,7 @@ pub fn build_ui(application: &gtk::Application) {
 		    alert_diag(&window, "Loop requires subfolders!");
 		    return;
 		}},
+		    &dtypes::AnekDirectoryType::Inputs => (),
 		    &dtypes::AnekDirectoryType::Variables | &dtypes::AnekDirectoryType::Templates => {
 			if cb_newfile_sub.is_active(){
 		    alert_diag(&window, "Subfolders not supported!");
@@ -145,7 +146,7 @@ pub fn build_ui(application: &gtk::Application) {
 			alert_diag(&window, "Cannot have Empty subfolder name!");
 			return;
 		    } else {
-			txt_newfile.set_text(&format!("{}/{}", txt_newfile.text(), txt_newfile_sub.text()));
+			txt_newfile.set_text(&format!("{}{}{}", txt_newfile.text(), std::path::MAIN_SEPARATOR, txt_newfile_sub.text()));
 			cb_newfile_sub.set_active(false);
 		    }
 		},
@@ -159,8 +160,9 @@ pub fn build_ui(application: &gtk::Application) {
 			alert_diag(&window, "Cannot have Empty subfolder name!");
 			return;
 		    }
-		    format!("{}.d/{}",
+		    format!("{}.d{}{}",
 			    txt_newfile.text(),
+			    std::path::MAIN_SEPARATOR,
 			    txt_newfile_sub.text())
 		} else {
 		    txt_newfile.text().to_string()
@@ -169,10 +171,11 @@ pub fn build_ui(application: &gtk::Application) {
 		if path.exists(){
 		    alert_diag(&window, "File Already Exists.");
 		} else {
+		    let _ = std::fs::create_dir_all(path.parent().unwrap());
 		    File::create(path).unwrap();
 		    load_anek_files(&dd_file, &anek);
 		}
-		let filename = format!("{}/{}", dt.dir_name(), filename);
+		let filename = format!("{}{}{}", dt.dir_name(), std::path::MAIN_SEPARATOR, filename);
 		let mut m: u32 = 0;
 		let model = dd_file.model().unwrap();
 		for i in 0..(model.n_items()){
@@ -266,7 +269,7 @@ pub fn build_ui(application: &gtk::Application) {
     let settings = Settings::new(APP_ID);
     settings.bind("project-path", &txt_browse, "text").build();
     let curr_path = PathBuf::from(settings.string("project-path"));
-    let curr_path = match curr_path.canonicalize() {
+    let curr_path = match dunce::canonicalize(&curr_path) {
         Ok(p) => p.to_string_lossy().to_string(),
         _ => curr_path.to_string_lossy().to_string(),
     };

@@ -84,6 +84,7 @@ impl AnekDirectoryType {
     }
 }
 
+#[derive(Debug)]
 pub struct AnekDirectory {
     proj_root: PathBuf,
     root: PathBuf,
@@ -262,7 +263,7 @@ impl AnekDirectory {
 
     pub fn get_file_global(&self, filename: &str) -> PathBuf {
         let mut fp = self.root.to_path_buf();
-        for f in filename.split('/') {
+        for f in filename.split(std::path::MAIN_SEPARATOR) {
             fp = fp.join(f)
         }
         fp
@@ -273,7 +274,12 @@ impl AnekDirectory {
     }
 
     pub fn get_file(&self, dirtype: &AnekDirectoryType, filename: &str) -> PathBuf {
-        self.get_file_global(&format!("{}/{}", dirtype.dir_name(), filename))
+        self.get_file_global(&format!(
+            "{}{}{}",
+            dirtype.dir_name(),
+            std::path::MAIN_SEPARATOR,
+            filename
+        ))
     }
 
     pub fn url_to_path(&self, dirtype: &AnekDirectoryType, filename: &str) -> String {
