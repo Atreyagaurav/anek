@@ -85,8 +85,8 @@ impl AnekDirectoryType {
 }
 
 pub struct AnekDirectory {
-    pub proj_root: PathBuf,
-    pub root: PathBuf,
+    proj_root: PathBuf,
+    root: PathBuf,
 }
 
 #[derive(Clone)]
@@ -139,7 +139,7 @@ impl Command {
         variables: &HashMap<String, String>,
         demo: bool,
         pipable: bool,
-        cwd: &PathBuf,
+        cwd: &Path,
     ) -> Result<(), Error> {
         let cmd = self.render(variables.clone())?;
         if pipable {
@@ -207,6 +207,10 @@ impl CommandInputs {
 }
 
 impl AnekDirectory {
+    pub fn proj_root(&self) -> &Path {
+        &self.proj_root
+    }
+
     pub fn from(wd: &Path) -> Result<Self, Error> {
         let root = wd.join(".anek");
         if root.exists() {
@@ -228,7 +232,7 @@ impl AnekDirectory {
         }
     }
 
-    pub fn new(wd: &PathBuf) -> Result<Self, Error> {
+    pub fn new(wd: &Path) -> Result<Self, Error> {
         let root = wd.join(".anek");
         if root.exists() {
             if root.is_dir() {
@@ -256,8 +260,20 @@ impl AnekDirectory {
         self.root.join(dirtype.dir_name())
     }
 
+    pub fn get_file_global(&self, filename: &str) -> PathBuf {
+        let mut fp = self.root.to_path_buf();
+        for f in filename.split('/') {
+            fp = fp.join(f)
+        }
+        fp
+    }
+
+    pub fn list_all_files(&self) -> Vec<String> {
+        variable::list_filenames(&self.root).unwrap()
+    }
+
     pub fn get_file(&self, dirtype: &AnekDirectoryType, filename: &str) -> PathBuf {
-        self.get_directory(dirtype).join(filename)
+        self.get_file_global(&format!("{}/{}", dirtype.dir_name(), filename))
     }
 
     pub fn url_to_path(&self, dirtype: &AnekDirectoryType, filename: &str) -> String {
@@ -291,7 +307,7 @@ impl AnekDirectory {
         })
     }
 
-    pub fn inputs<T: ToString>(&self, index: usize, files: &Vec<T>) -> CommandInputs {
+    pub fn inputs<T: ToString>(&self, index: usize, files: &[T]) -> CommandInputs {
         CommandInputs::from_files(
             index,
             files.iter().map(|s| s.to_string()).join(","),

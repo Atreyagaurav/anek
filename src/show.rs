@@ -18,9 +18,8 @@ pub struct CliArgs {
 }
 
 pub fn show_file(args: CliArgs, path: PathBuf) -> Result<(), Error> {
-    let filepath = AnekDirectory::from(&args.path.unwrap_or(path))?
-        .root
-        .join(&args.anek_file);
+    let filepath =
+        AnekDirectory::from(&args.path.unwrap_or(path))?.get_file_global(&args.anek_file);
 
     let contents = std::fs::read_to_string(filepath)?;
     if args

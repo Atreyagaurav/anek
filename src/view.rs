@@ -12,6 +12,6 @@ pub struct CliArgs {
 
 pub fn cmd(args: CliArgs, path: PathBuf) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from(&args.path.unwrap_or(path))?;
-    println!("{:?}", anek_dir.root);
+    println!("{:?}", anek_dir.proj_root());
     Ok(())
 }

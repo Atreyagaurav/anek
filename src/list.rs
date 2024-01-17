@@ -133,7 +133,7 @@ pub fn list_options(args: CliArgs, path: PathBuf) -> Result<(), Error> {
             let fpath = if let Some(ref at) = anek_type {
                 anek_dir.get_file(at, &p)
             } else {
-                anek_dir.root.join(p)
+                anek_dir.get_file_global(&p)
             };
             let matching_lines = variable::matching_lines(&fpath, &args.search, false)?;
             for (ln, line) in matching_lines {

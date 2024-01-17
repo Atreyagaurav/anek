@@ -79,7 +79,7 @@ pub fn run_command(args: CliArgs, anek_dir: AnekDirectory) -> Result<(), Error> 
         }
         let variables = run_utils::variables_from_input(input, &overwrite)?;
         for cmd in &commands {
-            cmd.run(&variables, args.demo, args.pipable, &anek_dir.proj_root)?;
+            cmd.run(&variables, args.demo, args.pipable, anek_dir.proj_root())?;
         }
     }
     Ok(())

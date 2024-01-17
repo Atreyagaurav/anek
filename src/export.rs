@@ -71,7 +71,7 @@ impl ExportWrapers {
         }
     }
 
-    pub fn from_name(name: &str, vars: &Vec<String>) -> Result<Self, Error> {
+    pub fn from_name(name: &str, vars: &[String]) -> Result<Self, Error> {
         match name {
             "csv" => Self::csv(vars),
             "json" => Self::json(vars),

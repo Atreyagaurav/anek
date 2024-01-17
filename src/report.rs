@@ -61,26 +61,14 @@ pub fn generate_report(anekdir: AnekDirectory) -> Result<String, Error> {
 
 pub fn save_report(args: CliArgs, path: PathBuf) -> Result<(), Error> {
     let filepath = AnekDirectory::from(args.path.as_ref().unwrap_or(&path))?;
-    if !filepath.root.exists() {
-        return Err(Error::msg(format!(
-            "The path {:?} doesn't have anek configuration",
-            args.path
-        )));
-    } else if !filepath.root.is_dir() {
-        return Err(Error::msg(format!(
-            "{:?} file exists which is not a anek configuration",
-            filepath.root
-        )));
-    } else {
-        // make report
-        let report_fname = args.filename.with_extension("md");
-        eprintln!(
-            "Generating report {:?} for {:?}",
-            report_fname, filepath.root
-        );
-        let report_content = generate_report(filepath)?;
-        let mut file = fs::File::create(std::env::current_dir().unwrap().join(report_fname))?;
-        file.write_all(report_content.as_bytes())?;
-    }
+    let report_fname = args.filename.with_extension("md");
+    eprintln!(
+        "Generating report {:?} for {:?}",
+        report_fname,
+        filepath.proj_root()
+    );
+    let report_content = generate_report(filepath)?;
+    let mut file = fs::File::create(std::env::current_dir().unwrap().join(report_fname))?;
+    file.write_all(report_content.as_bytes())?;
     Ok(())
 }

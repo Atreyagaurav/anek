@@ -20,9 +20,9 @@ pub struct CliArgs {
 
 pub fn edit_file(args: CliArgs, path: PathBuf) -> Result<(), Error> {
     let anek_dir = AnekDirectory::from(&args.path.unwrap_or(path))?;
-    let filepath = anek_dir.root.join(args.anek_file);
+    let filepath = anek_dir.get_file_global(&args.anek_file);
     let command = format!("{} {:?}", env::var("EDITOR").unwrap(), filepath);
     println!("{}", command);
-    Exec::shell(command).cwd(&anek_dir.proj_root).join()?;
+    Exec::shell(command).cwd(anek_dir.proj_root()).join()?;
     Ok(())
 }

@@ -1,6 +1,5 @@
 use crate::dtypes;
 use crate::dtypes::AnekDirectory;
-use crate::variable;
 use gtk::gdk::Key;
 use gtk::gdk::ModifierType;
 use gtk::gio::Settings;
@@ -102,7 +101,7 @@ pub fn build_ui(application: &gtk::Application) {
             if let Some(path) = dd_file.selected_item().map( |i| i.downcast::<StringObject>().unwrap()){
             let wd = PathBuf::from(txt_browse.text());
             if  let Ok(anek) = dtypes::AnekDirectory::from(&wd){
-		let filename = anek.root.join(&path.string());
+		let filename = anek.get_file_global(&path.string());
 		let file = File::open(filename).expect("Couldn't open file");
 
                 let mut reader = BufReader::new(file);
@@ -203,7 +202,7 @@ pub fn build_ui(application: &gtk::Application) {
             if let Some(path) = dd_file.selected_item().map( |i| i.downcast::<StringObject>().unwrap()){
             let wd = PathBuf::from(txt_browse.text());
             if  let Ok(anek) = dtypes::AnekDirectory::from(&wd){
-		let filename = anek.root.join(&path.string());
+		let filename = anek.get_file_global(&path.string());
 		let buf = txt_file.buffer();
 		let contents = buf.text(&buf.start_iter(), &buf.end_iter(), true).to_string();
 		let mut file = File::create(filename).expect("Couldn't open file");
@@ -281,7 +280,7 @@ fn alert_diag(window: &gtk::ApplicationWindow, msg: &str) {
 }
 
 fn load_anek_files(dd_file: &DropDown, anek: &AnekDirectory) {
-    let files = variable::list_filenames(&anek.root).unwrap();
+    let files = anek.list_all_files();
     let files: StringList = files.into_iter().collect();
     dd_file.set_model(Some(&files));
 }
