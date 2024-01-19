@@ -10,9 +10,12 @@ And some template here: mean is {mean}, and sd is {sd}.
 Then we have other things
 
 * Another top level heading
+We can even do fancy things like table, it's all about templates:
+
+| Mean  | SD   |
+|-------+------|
 # ------8<---------
-** Another Subheadings for the inputs
-And again mean is {mean}, and sd is {sd}.
+|{mean} | {sd} |
 # ------8<---------
 
 And finally we'll end here.
