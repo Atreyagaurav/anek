@@ -8,7 +8,7 @@ use subprocess::Exec;
 
 use crate::variable;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum AnekDirectoryType {
     Variables,
     Inputs,
@@ -16,6 +16,19 @@ pub enum AnekDirectoryType {
     Pipelines,
     Loops,
     Batch,
+}
+
+impl std::fmt::Display for AnekDirectoryType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            AnekDirectoryType::Variables => write!(f, "Variables"),
+            AnekDirectoryType::Inputs => write!(f, "Inputs"),
+            AnekDirectoryType::Commands => write!(f, "Commands"),
+            AnekDirectoryType::Pipelines => write!(f, "Pipelines"),
+            AnekDirectoryType::Loops => write!(f, "Loops"),
+            AnekDirectoryType::Batch => write!(f, "Batch"),
+        }
+    }
 }
 
 impl AnekDirectoryType {
@@ -274,8 +287,8 @@ impl AnekDirectory {
     }
 }
 
-pub fn anekdirtype_iter() -> Iter<'static, AnekDirectoryType> {
-    [
+pub fn anekdirtype() -> &'static [AnekDirectoryType] {
+    &[
         AnekDirectoryType::Variables,
         AnekDirectoryType::Inputs,
         AnekDirectoryType::Commands,
@@ -283,5 +296,8 @@ pub fn anekdirtype_iter() -> Iter<'static, AnekDirectoryType> {
         AnekDirectoryType::Loops,
         AnekDirectoryType::Batch,
     ]
-    .iter()
+}
+
+pub fn anekdirtype_iter() -> Iter<'static, AnekDirectoryType> {
+    anekdirtype().iter()
 }

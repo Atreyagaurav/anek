@@ -33,7 +33,7 @@ pub struct InputsArgs {
     /// be comma separated values of possitive integers, you can have
     /// range of values like: 1-5 to represent values from 1 to 5.
     #[arg(short, long, default_value="", value_hint = ValueHint::Other, value_parser=filter_index)]
-    select_inputs: HashSet<usize>,
+    pub select_inputs: HashSet<usize>,
     /// Run from batch
     ///
     /// Batch file are list of input files that are run one after
@@ -42,14 +42,14 @@ pub struct InputsArgs {
     /// possible input files. If you provide more than a single batch
     /// file, their inputs will be combined and run one after another.
     #[arg(short, long, group="variables", value_delimiter=',', value_hint = ValueHint::Other)]
-    batch: Vec<String>,
+    pub batch: Vec<String>,
     /// Run commands by looping for the inputs
     ///
     /// Loops though the values of the input variables in the loop
     /// config and run the command templates on the combinations of
     /// those different variables.
     #[arg(short, long, group="variables", value_hint = ValueHint::Other)]
-    r#loop: Option<String>,
+    pub r#loop: Option<String>,
     /// Run from inputs
     ///
     /// Use the variables' values defined in the inputs file to fill
@@ -61,7 +61,7 @@ pub struct InputsArgs {
     /// if they're directory then each directory will be read in the
     /// aforementioned way.
     #[arg(short, long, group="variables", value_delimiter=',', value_hint = ValueHint::Other)]
-    input: Vec<String>,
+    pub input: Vec<String>,
     /// Overwrite input variables
     ///
     /// Provide variables to be overwritten in the input config. If
@@ -73,16 +73,16 @@ pub struct InputsArgs {
     /// multiple values for the variable that you are overwriting,
     /// then it'll no longer use any of those values to loop.
     #[arg(short, long, value_delimiter=',', value_hint = ValueHint::Other)]
-    overwrite: Vec<String>,
+    pub overwrite: Vec<String>,
     /// Arguments to pass to the action template as ARG<N>
     ///
     /// The arguments passed here can be accessed as ARG1,ARG2,etc in
     /// the template.
     #[arg(num_args(0..), last(true), requires="action")]
-    command_args: Vec<String>,
+    pub command_args: Vec<String>,
 }
 
-fn filter_index(inputs: &str) -> Result<HashSet<usize>, Error> {
+pub fn filter_index(inputs: &str) -> Result<HashSet<usize>, Error> {
     Ok(NumberRangeOptions::default()
         .with_list_sep(',')
         .with_range_sep('-')
