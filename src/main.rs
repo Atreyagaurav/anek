@@ -4,9 +4,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use colored::Colorize;
 use std::time::Instant;
 
-mod gui;
 mod completions;
-mod dtypes;
 mod edit;
 mod export;
 mod graph;
@@ -15,10 +13,12 @@ mod new;
 mod render;
 mod report;
 mod run;
-mod run_utils;
 mod show;
-mod variable;
 mod view;
+
+use anek::dtypes;
+use anek::run_utils;
+use anek::variable;
 
 #[derive(Parser)]
 #[command(name = "anek", author, about, version)]
@@ -39,8 +39,6 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Action {
-    /// Open the Anek GUI at the current location
-    Gui(gui::CliArgs),
     /// make a new anek configuration
     ///
     /// Make a new configuration setup (directories) in current
@@ -111,7 +109,6 @@ fn main() {
     let start_time = Local::now().format("%Y-%m-%d %H:%M:%S");
     let start = Instant::now();
     let action_result: Result<(), Error> = match g_args.action {
-        Action::Gui(args) => gui::run(args),
         Action::New(args) => new::new_config(args),
         Action::Variable(args) => variable::run_command(args),
         Action::List(args) => list::list_options(args),

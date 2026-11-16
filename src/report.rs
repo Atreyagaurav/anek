@@ -5,7 +5,7 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
-use crate::dtypes::{anekdirtype_iter, AnekDirectory};
+use crate::dtypes::{AnekDirectory, anekdirtype_iter};
 use crate::variable;
 
 #[derive(Args)]

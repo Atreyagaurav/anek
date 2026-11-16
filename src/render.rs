@@ -78,7 +78,7 @@ impl RenderFileContents {
                 return Err(Error::msg(format!(
                     "Couldn't open input file: {:?}\n{:?}",
                     &filename, e
-                )))
+                )));
             }
         };
         let reader_lines = BufReader::new(file).lines();

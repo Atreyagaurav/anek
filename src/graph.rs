@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use crate::dtypes::{anekdirtype_iter, AnekDirectory, AnekDirectoryType};
+use crate::dtypes::{AnekDirectory, AnekDirectoryType, anekdirtype_iter};
 use crate::variable;
 
 #[derive(Args)]

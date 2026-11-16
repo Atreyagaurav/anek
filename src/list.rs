@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::dtypes::AnekDirectoryType;
 use crate::{
-    dtypes::{anekdirtype_iter, AnekDirectory},
+    dtypes::{AnekDirectory, anekdirtype_iter},
     variable,
 };
 

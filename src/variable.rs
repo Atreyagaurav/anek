@@ -3,7 +3,7 @@ use clap::{ArgGroup, Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::fs::{read_dir, File};
+use std::fs::{File, read_dir};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use string_template_plus::{Render, RenderOptions, Template, TemplatePart};
@@ -65,7 +65,7 @@ pub fn input_lines(
             return Err(Error::msg(format!(
                 "Couldn't open input file: {:?}\n{:?}",
                 &filename, e
-            )))
+            )));
         }
     };
     let reader_lines = BufReader::new(file).lines();
