@@ -198,7 +198,7 @@ pub fn list_filenames(dirpath: &PathBuf) -> Result<Vec<String>, Error> {
             let relpath = fullpath
                 .strip_prefix(dirpath_full)
                 .unwrap()
-                .trim_start_matches("/");
+                .trim_start_matches(std::path::MAIN_SEPARATOR);
             relpath.to_string()
         })
         .collect();
@@ -230,7 +230,7 @@ pub fn list_anek_filenames(dirpath: &PathBuf) -> Result<Vec<String>, Error> {
             let relpath = fullpath
                 .strip_prefix(dirpath_full)
                 .unwrap()
-                .trim_start_matches("/");
+                .trim_start_matches(std::path::MAIN_SEPARATOR);
             relpath.to_string()
         })
         .sorted()

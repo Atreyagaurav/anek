@@ -17,7 +17,7 @@ use anek::run_utils;
 
 pub fn main() -> Result<(), Error> {
     Ok(iced::application(State::new, State::update, State::view)
-        .title("TypDoc - A Typst Based Document Format")
+        .title("Anek - Easy Command Execution")
         .run()?)
 }
 
@@ -32,13 +32,7 @@ struct AnekConfig {
 }
 
 impl AnekConfig {
-    fn new() -> Result<Self, Error> {
-        let path = if let Some(p) = std::env::args().nth(1) {
-            PathBuf::from(p)
-        } else {
-            PathBuf::from(".")
-        };
-        let dir = AnekDirectory::from(&path)?;
+    fn new(dir: AnekDirectory) -> Result<Self, Error> {
         let list = |dt| anek::variable::list_anek_filenames(&dir.get_directory(dt));
         Ok(Self {
             variables: list(&AnekDirectoryType::Variables)?,
@@ -62,11 +56,19 @@ impl AnekConfig {
         }
     }
 
-    fn maybe_one<'a>(&'a self, ty: &AnekDirectoryType) -> Option<&'a String> {
-        match self.list(ty) {
-            [one] => Some(one),
-            _ => None,
+    fn list_mut<'a>(&'a mut self, ty: &AnekDirectoryType) -> &'a mut Vec<String> {
+        match ty {
+            AnekDirectoryType::Variables => &mut self.variables,
+            AnekDirectoryType::Inputs => &mut self.inputs,
+            AnekDirectoryType::Batch => &mut self.batch,
+            AnekDirectoryType::Commands => &mut self.commands,
+            AnekDirectoryType::Pipelines => &mut self.pipelines,
+            AnekDirectoryType::Loops => &mut self.loops,
         }
+    }
+
+    fn maybe_one<'a>(&'a self, ty: &AnekDirectoryType) -> Option<&'a String> {
+        self.list(ty).first()
     }
 }
 
@@ -135,7 +137,67 @@ impl AnekTaskType {
     }
 }
 
-struct State {
+enum State {
+    NoAnek(PathBuf),
+    Anek(AnekState),
+}
+
+impl State {
+    fn new() -> Self {
+        let path = if let Some(p) = std::env::args().nth(1) {
+            PathBuf::from(p)
+        } else {
+            PathBuf::from(".")
+        };
+        match AnekDirectory::from(&path) {
+            Ok(dir) => Self::Anek(AnekState::new(dir)),
+            Err(_) => Self::NoAnek(path),
+        }
+    }
+
+    fn view(&self) -> Element<'_, Message> {
+        match self {
+            Self::Anek(s) => s.view(),
+            Self::NoAnek(p) => column![
+                row![
+                    text("There is no anek configuration at this path: "),
+                    text(format!("{p:?}"))
+                ],
+                row![
+                    button("Create Anek Config").on_press(Message::CreateAnekConfig),
+                    horizontal(),
+                    button("Exit").on_press(Message::Exit)
+                ],
+		row![text("Creating Anek configuration will make a .anek directory at this location where you can save scripts and input variables to run different commanline applications.")]
+            ]
+            .padding(25)
+            .spacing(20)
+            .into(),
+        }
+    }
+
+    fn update(&mut self, msg: Message) {
+        match self {
+            Self::Anek(s) => s.update(msg),
+            Self::NoAnek(p) => match msg {
+                Message::CreateAnekConfig => {
+                    let dir = AnekDirectory::new(&p).unwrap();
+                    let mut new = AnekState::new(dir);
+                    new.new_file = Some("sample".into());
+                    new.content = text_editor::Content::with_text(
+                        "name=Test\nvalue=100\n# single line comments are supported\n",
+                    );
+                    new.editing = true;
+                    *self = Self::Anek(new);
+                }
+                Message::Exit => std::process::exit(0),
+                _ => panic!("Invalid message, should not be sent"),
+            },
+        }
+    }
+}
+
+struct AnekState {
     config: AnekConfig,
     input_type: AnekInputType,
     input: Option<String>,
@@ -155,10 +217,43 @@ struct State {
     status: String,
 }
 
-impl State {
+impl AnekState {
     fn run(&self) -> Result<(), Error> {
-        if self.input.is_none() || self.task.is_none() {
+        if self.task.is_none() {
             // do nothing; maybe give error later?
+            return Ok(());
+        } else if self.input.is_none() {
+            // no inputs should be supported if there is no variables in the commands
+            let task = self.task.clone().unwrap();
+            let commands = match &self.task_type {
+                AnekTaskType::Pipeline => run_utils::cmd_from_pipeline(&self.config.dir, &task)?,
+                AnekTaskType::Command => {
+                    vec![self.config.dir.command(&task)?]
+                }
+            };
+            let mut variables: HashSet<&str> = HashSet::new();
+            for cmd in &commands {
+                cmd.template().parts().iter().for_each(|p| {
+                    p.variables().iter().for_each(|v| {
+                        variables.insert(v);
+                    })
+                });
+            }
+            if !variables.is_empty() {
+                let trunc = if variables.len() > 5 { "; ..." } else { "" };
+                let vars = variables
+                    .into_iter()
+                    .take(5)
+                    .collect::<Vec<&str>>()
+                    .join("; ");
+                return Err(anyhow::Error::msg(format!(
+                    "Command requires inputs with these variables: {vars}{trunc}",
+                )));
+            }
+            let vars = HashMap::with_capacity(0);
+            for cmd in &commands {
+                cmd.run(&vars, self.demo, false)?;
+            }
             return Ok(());
         }
         let select_inputs = run_utils::filter_index(&self.subset)?;
@@ -209,15 +304,20 @@ impl State {
         Ok(())
     }
 
-    fn new() -> Self {
+    fn new(dir: AnekDirectory) -> Self {
+        let config = AnekConfig::new(dir).unwrap();
+        let input_type = AnekInputType::default();
+        let input = config.maybe_one(input_type.anek_dir_type()).cloned();
+        let task_type = AnekTaskType::default();
+        let task = config.maybe_one(task_type.anek_dir_type()).cloned();
         Self {
-            config: AnekConfig::new().unwrap(),
-            input_type: AnekInputType::default(),
-            input: None,
+            config,
+            input_type,
+            input,
             subset: String::new(),
             _parallel: false,
-            task_type: AnekTaskType::default(),
-            task: None,
+            task_type,
+            task,
             preview: (
                 text_editor::Content::default(),
                 text_editor::Content::default(),
@@ -347,10 +447,12 @@ impl State {
                     let path = self.config.dir.get_file(&self.dir_type, v);
                     let _ = std::fs::write(path, self.content.text());
                     self.dirty = false;
+                    self.config.list_mut(&self.dir_type).push(v.clone());
                 } else if let Some(v) = &self.filename {
                     let path = self.config.dir.get_file(&self.dir_type, v);
                     let _ = std::fs::write(path, self.content.text());
                     self.dirty = false;
+                    self.config.list_mut(&self.dir_type).push(v.clone());
                 } else {
                     // Save button disabled when both are none, so this should not happen
                 }
@@ -364,6 +466,30 @@ impl State {
                 }
                 // The message should not be sent when new_file is none from UI
             }
+            Message::PreviewTaskAction(act) => {
+                if act.is_edit() {
+                    self.status =
+                        "Preview can not be edited. Use the Edit Config button to goto Edit mode."
+                            .into();
+                    self.error = true;
+                } else {
+                    self.preview.0.perform(act)
+                }
+            }
+            Message::PreviewInputAction(act) => {
+                if act.is_edit() {
+                    self.status =
+                        "Preview can not be edited. Use the Edit Config button to goto Edit mode."
+                            .into();
+                    self.error = true;
+                } else {
+                    self.preview.1.perform(act)
+                }
+            }
+            Message::CreateAnekConfig => {
+                panic!("Anek config already loaded, should not be called here")
+            }
+            Message::Exit => std::process::exit(0),
         }
     }
 
@@ -403,10 +529,11 @@ impl State {
                     Message::DirTypeChanged
                 ), // no way to disable?
                 filename,
-                button("Revert").on_press(Message::RevertEdit),
+                button("Revert").on_press_maybe(self.dirty.then(|| Message::RevertEdit)),
                 horizontal(),
                 button("Save").on_press_maybe(
-                    (self.new_file.is_some() || self.filename.is_some()).then(|| Message::SaveEdit)
+                    (self.new_file.is_some() || (self.filename.is_some() && self.dirty))
+                        .then(|| Message::SaveEdit)
                 )
             ]
             .spacing(5),
@@ -455,8 +582,13 @@ impl State {
             ]
             .spacing(5),
             row![
-                text_editor(&self.preview.0).height(Length::Fill),
-                text_editor(&self.preview.1).height(Length::Fill)
+                // maybe we'll add simple highlights later
+                text_editor(&self.preview.0)
+                    .on_action(Message::PreviewTaskAction)
+                    .height(Length::Fill),
+                text_editor(&self.preview.1)
+                    .on_action(Message::PreviewInputAction)
+                    .height(Length::Fill)
             ],
             row![text(&self.status).style(if self.error {
                 text::danger
@@ -500,4 +632,9 @@ enum Message {
     NewFileName(String),
     RevertEdit,
     FinishEditing,
+    PreviewTaskAction(text_editor::Action),
+    PreviewInputAction(text_editor::Action),
+    // NoAnek
+    CreateAnekConfig,
+    Exit,
 }
