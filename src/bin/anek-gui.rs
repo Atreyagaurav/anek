@@ -77,7 +77,7 @@ enum AnekInputType {
     #[default]
     Inputs,
     Batch,
-    Loops,
+    // Loops,
 }
 
 impl std::fmt::Display for AnekInputType {
@@ -85,7 +85,7 @@ impl std::fmt::Display for AnekInputType {
         match self {
             AnekInputType::Inputs => write!(f, "Inputs"),
             AnekInputType::Batch => write!(f, "Batch"),
-            AnekInputType::Loops => write!(f, "Loops"),
+            // AnekInputType::Loops => write!(f, "Loops"),
         }
     }
 }
@@ -95,7 +95,7 @@ impl AnekInputType {
         &[
             AnekInputType::Inputs,
             AnekInputType::Batch,
-            AnekInputType::Loops,
+            // AnekInputType::Loops,
         ]
     }
 
@@ -103,7 +103,7 @@ impl AnekInputType {
         match self {
             AnekInputType::Inputs => &AnekDirectoryType::Inputs,
             AnekInputType::Batch => &AnekDirectoryType::Batch,
-            AnekInputType::Loops => &AnekDirectoryType::Loops,
+            // AnekInputType::Loops => &AnekDirectoryType::Loops,
         }
     }
 }
@@ -256,12 +256,13 @@ impl AnekState {
             }
             return Ok(());
         }
-        let select_inputs = run_utils::filter_index(&self.subset)?;
+        let select_inputs = run_utils::filter_index(&self.subset)
+            .map_err(|e| anyhow::Error::msg(format!("Subset failed: {e}")))?;
         let input = self.input.clone().unwrap();
         let (batch, input, r#loop) = match &self.input_type {
             AnekInputType::Inputs => (vec![], vec![input], None),
             AnekInputType::Batch => (vec![input], vec![], None),
-            AnekInputType::Loops => (vec![], vec![], Some(input)),
+            // AnekInputType::Loops => (vec![], vec![], Some(input)),
         };
         let inputs = run_utils::Inputs::On(run_utils::InputsArgs {
             select_inputs,
@@ -310,6 +311,21 @@ impl AnekState {
         let input = config.maybe_one(input_type.anek_dir_type()).cloned();
         let task_type = AnekTaskType::default();
         let task = config.maybe_one(task_type.anek_dir_type()).cloned();
+
+        let preview_0 = if let Some(v) = &task {
+            let path = config.dir.get_file(task_type.anek_dir_type(), v);
+            let txt = std::fs::read_to_string(path).unwrap_or_default();
+            text_editor::Content::with_text(&txt)
+        } else {
+            text_editor::Content::default()
+        };
+        let preview_1 = if let Some(v) = &input {
+            let path = config.dir.get_file(input_type.anek_dir_type(), v);
+            let txt = std::fs::read_to_string(path).unwrap_or_default();
+            text_editor::Content::with_text(&txt)
+        } else {
+            text_editor::Content::default()
+        };
         Self {
             config,
             input_type,
@@ -318,10 +334,7 @@ impl AnekState {
             _parallel: false,
             task_type,
             task,
-            preview: (
-                text_editor::Content::default(),
-                text_editor::Content::default(),
-            ),
+            preview: (preview_0, preview_1),
             demo: false,
             editing: false,
             dirty: false,
@@ -342,21 +355,27 @@ impl AnekState {
                     .config
                     .maybe_one(self.input_type.anek_dir_type())
                     .cloned();
-                self.preview.1 = text_editor::Content::new();
+                self.preview.1 = if let Some(v) = &self.input {
+                    let path = self.config.dir.get_file(self.input_type.anek_dir_type(), v);
+                    let txt = std::fs::read_to_string(path).unwrap_or_default();
+                    text_editor::Content::with_text(&txt)
+                } else {
+                    text_editor::Content::default()
+                };
             }
             Message::InputChanged(v) => {
-                if self.input_type == AnekInputType::Loops {
-                    self.preview.1 = text_editor::Content::with_text(
-                        "# preview not supported for loop inputs\nuse Demo run to see",
-                    );
-                } else {
-                    let path = self
-                        .config
-                        .dir
-                        .get_file(self.input_type.anek_dir_type(), &v);
-                    let txt = std::fs::read_to_string(path).unwrap_or_default();
-                    self.preview.1 = text_editor::Content::with_text(&txt);
-                }
+                // if self.input_type == AnekInputType::Loops {
+                //     self.preview.1 = text_editor::Content::with_text(
+                //         "# preview not supported for loop inputs\nuse Demo run to see",
+                //     );
+                // } else {
+                let path = self
+                    .config
+                    .dir
+                    .get_file(self.input_type.anek_dir_type(), &v);
+                let txt = std::fs::read_to_string(path).unwrap_or_default();
+                self.preview.1 = text_editor::Content::with_text(&txt);
+                // }
                 self.input = Some(v);
             }
             Message::TaskTypeChanged(v) => {
@@ -365,7 +384,13 @@ impl AnekState {
                     .config
                     .maybe_one(self.task_type.anek_dir_type())
                     .cloned();
-                self.preview.0 = text_editor::Content::new();
+                self.preview.0 = if let Some(v) = &self.task {
+                    let path = self.config.dir.get_file(self.task_type.anek_dir_type(), v);
+                    let txt = std::fs::read_to_string(path).unwrap_or_default();
+                    text_editor::Content::with_text(&txt)
+                } else {
+                    text_editor::Content::default()
+                };
             }
             Message::TaskChanged(v) => {
                 let path = self.config.dir.get_file(self.task_type.anek_dir_type(), &v);
@@ -444,6 +469,16 @@ impl AnekState {
             }
             Message::SaveEdit => {
                 if let Some(v) = &self.new_file {
+                    if self
+                        .config
+                        .list(&self.dir_type)
+                        .iter()
+                        .find(|l| l == &v)
+                        .is_some()
+                    {
+                        // to protect from overwriting, need to show some message
+                        return;
+                    }
                     let path = self.config.dir.get_file(&self.dir_type, v);
                     let _ = std::fs::write(path, self.content.text());
                     self.dirty = false;
@@ -452,7 +487,6 @@ impl AnekState {
                     let path = self.config.dir.get_file(&self.dir_type, v);
                     let _ = std::fs::write(path, self.content.text());
                     self.dirty = false;
-                    self.config.list_mut(&self.dir_type).push(v.clone());
                 } else {
                     // Save button disabled when both are none, so this should not happen
                 }
@@ -520,9 +554,8 @@ impl AnekState {
         column![
             row![
                 checkbox(self.new_file.is_some())
-                    .label("New File")
+                    .label("Create a New File")
                     .on_toggle(Message::NewFileToggle),
-                text("Editing"),
                 pick_list(
                     anek::dtypes::anekdirtype(),
                     Some(&self.dir_type),
@@ -574,7 +607,7 @@ impl AnekState {
                     match &self.input_type {
                         AnekInputType::Inputs => self.config.inputs.as_slice(),
                         AnekInputType::Batch => self.config.batch.as_slice(),
-                        AnekInputType::Loops => self.config.loops.as_slice(),
+                        // AnekInputType::Loops => self.config.loops.as_slice(),
                     },
                     self.input.as_ref(),
                     Message::InputChanged
@@ -599,7 +632,7 @@ impl AnekState {
                 button("Edit Anek Config").on_press(Message::EditAnekFiles),
                 horizontal(),
                 text("Selection: ").size(20),
-                text_input("All", &self.subset)
+                text_input("1-9999", &self.subset)
                     .on_input(Message::SubsetChanged)
                     .width(100),
                 horizontal(),
